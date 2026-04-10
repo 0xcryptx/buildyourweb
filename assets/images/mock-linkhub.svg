@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="p" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4da6ff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#8b7cff" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="250" fill="#070b14"/>
+  <rect x="100" y="24" width="200" height="202" rx="14" fill="rgba(17,26,46,0.45)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <rect x="100" y="24" width="200" height="202" rx="14" fill="url(#p)" opacity="0.5"/>
+  <!-- Avatar -->
+  <circle cx="200" cy="56" r="18" fill="rgba(77,166,255,0.25)" stroke="rgba(110,231,255,0.35)" stroke-width="1"/>
+  <rect x="168" y="82" width="64" height="8" rx="2" fill="rgba(255,255,255,0.14)"/>
+  <rect x="156" y="94" width="88" height="5" rx="1" fill="rgba(255,255,255,0.06)"/>
+  <!-- Link rows -->
+  <rect x="120" y="114" width="160" height="28" rx="8" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <rect x="120" y="150" width="160" height="28" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <rect x="120" y="186" width="160" height="28" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <rect x="132" y="124" width="72" height="6" rx="1" fill="rgba(255,255,255,0.12)"/>
+  <rect x="132" y="160" width="64" height="6" rx="1" fill="rgba(255,255,255,0.1)"/>
+  <rect x="132" y="196" width="80" height="6" rx="1" fill="rgba(255,255,255,0.1)"/>
+  <circle cx="256" cy="128" r="4" fill="rgba(110,231,255,0.4)"/>
+  <circle cx="256" cy="164" r="4" fill="rgba(255,255,255,0.15)"/>
+  <circle cx="256" cy="200" r="4" fill="rgba(255,255,255,0.15)"/>
+</svg>

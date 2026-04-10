@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Build Your Web (BYW) | Modern Website Design</title>
+    <meta
+      name="description"
+      content="Modern websites, portfolios, landing pages, multi-page websites, and custom link hub pages designed with a clean, polished, and professional feel."
+    />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/Logo/Favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/Logo/Favicon.png" />
+    <link rel="apple-touch-icon" href="assets/Logo/Favicon.png" />
+    <link rel="shortcut icon" href="assets/Logo/Favicon.png" />
+    <meta name="theme-color" content="#070b14" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Build Your Web (BYW)" />
+    <meta property="og:title" content="Build Your Web (BYW) | Modern Website Design" />
+    <meta
+      property="og:description"
+      content="Explore modern website design for businesses, personal brands, and portfolios, including landing pages, multi-page websites, and custom link hub pages."
+    />
+    <meta property="og:url" content="https://buildyourweb.com/contact.html" />
+    <meta property="og:image" content="https://buildyourweb.com/assets/Logo/Favicon.png" />
+    <meta property="og:image:alt" content="Build Your Web (BYW) logo" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Build Your Web (BYW) | Modern Website Design" />
+    <meta
+      name="twitter:description"
+      content="Clean, modern websites and custom link hub pages for businesses, personal brands, and portfolios."
+    />
+    <meta name="twitter:image" content="https://buildyourweb.com/assets/Logo/Favicon.png" />
+    <meta name="twitter:image:alt" content="Build Your Web (BYW) logo" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/style.css?v=47" />
+  </head>
+  <body data-page="contact">
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a class="logo" href="index.html">
+          <img
+            src="assets/Logo/BYW%20Logo%20Transparent.png?v=2"
+            alt="Build Your Web"
+            width="328"
+            height="86"
+            decoding="async"
+          />
+        </a>
+        <button
+          class="menu-toggle"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          aria-label="Open menu"
+        >
+          Menu
+        </button>
+        <ul class="nav-links" id="site-nav">
+          <li><a href="index.html" data-page-link="home">Home</a></li>
+          <li><a href="services.html" data-page-link="services">Services</a></li>
+          <li><a href="portfolio.html" data-page-link="portfolio">Projects</a></li>
+          <li><a href="about.html" data-page-link="about">About</a></li>
+          <li><a href="contact.html" data-page-link="contact">Contact</a></li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="page-hero">
+        <div class="container">
+          <div class="section-title reveal">
+            <span class="kicker">Contact Us</span>
+            <h1>Tell us what you need and we will get back quickly.</h1>
+            <p>
+              This is a front-end-only contact form that validates your input in
+              the browser and stores submissions locally (no backend required),
+              including requests for custom link hub pages.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container contact-wrap">
+          <form id="contactForm" class="reveal" novalidate>
+            <div class="field">
+              <label for="name">Full name *</label>
+              <input id="name" name="name" type="text" required />
+            </div>
+            <div class="field">
+              <label for="email">Email address *</label>
+              <input id="email" name="email" type="email" required />
+            </div>
+            <div class="field">
+              <label for="service">Service needed</label>
+              <select id="service" name="service">
+                <option value="Portfolio Website">Portfolio Website</option>
+                <option value="Landing Page">Landing Page</option>
+                <option value="Multi-Page Website">Multi-Page Website</option>
+                <option value="Custom Link Hub Page">Custom Link Hub Page</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="budget">Budget range</label>
+              <select id="budget" name="budget">
+                <option value="$500 - $1,500">$500 - $1,500</option>
+                <option value="$1,500 - $3,000">$1,500 - $3,000</option>
+                <option value="$3,000+">$3,000+</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="message">Project details *</label>
+              <textarea
+                id="message"
+                name="message"
+                placeholder="Tell us your goals, timeline, and any style direction."
+                required
+              ></textarea>
+            </div>
+            <div class="field">
+              <label>
+                <input type="checkbox" name="consent" value="yes" />
+                I agree to be contacted about this project. *
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Message</button>
+            <p class="form-note">
+              No backend is used: submission is saved in your browser for demo
+              purposes.
+            </p>
+            <p id="formStatus" class="status" aria-live="polite"></p>
+          </form>
+
+          <div class="map-frame reveal">
+            <iframe
+              src="https://www.google.com/maps?q=Manhattan,+New+York,+NY&output=embed"
+              title="Studio location map"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="logo" href="index.html">
+          <img
+            src="assets/Logo/BYW%20Logo%20Transparent.png?v=2"
+            alt="Build Your Web"
+            width="328"
+            height="86"
+            decoding="async"
+          />
+        </a>
+        <div class="footer-meta" aria-label="Footer">
+          <a class="footer-email" href="mailto:hello@buildyourweb.com">hello@buildyourweb.com</a>
+          <span class="footer-divider" aria-hidden="true">•</span>
+          <span class="footer-copy">© 2026 BYW</span>
+        </div>
+      </div>
+    </footer>
+
+    <script src="assets/js/main.js?v=24"></script>
+  </body>
+  </html>
