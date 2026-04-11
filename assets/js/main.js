@@ -562,54 +562,473 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initProjectModals();
 
-  const contactForm = document.getElementById("contactForm");
+  const initHomeMetrics = async () => {
+    if (document.body.dataset.page !== "home") return;
+
+    const satisfactionEl = document.getElementById("clientSatisfactionMetric");
+    const ratingEl = document.getElementById("averageRatingMetric");
+    const reviewCountEl = document.getElementById("reviewCountNote");
+    if (!satisfactionEl || !ratingEl) return;
+    if (reviewCountEl) reviewCountEl.hidden = true;
+
+    const animateMetricValue = (from, to, durationMs, onFrame) => {
+      if (prefersReducedMotion) {
+        onFrame(to);
+        return;
+      }
+      const start = performance.now();
+      const tick = (now) => {
+        const progress = Math.min(1, (now - start) / durationMs);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = from + (to - from) * eased;
+        onFrame(value);
+        if (progress < 1) {
+          window.requestAnimationFrame(tick);
+        }
+      };
+      window.requestAnimationFrame(tick);
+    };
+
+    const parseMetricNumber = (value) => {
+      const match = String(value || "").match(/-?\d+(\.\d+)?/);
+      return match ? Number(match[0]) : 0;
+    };
+
+    const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    let rollingTimer = null;
+
+    if (!prefersReducedMotion) {
+      const seedSatisfaction = randomInt(91, 99);
+      const seedRating = randomInt(45, 50) / 10;
+      satisfactionEl.textContent = `${seedSatisfaction}%`;
+      ratingEl.textContent = `${seedRating.toFixed(1)}/5`;
+      rollingTimer = window.setInterval(() => {
+        const rollingSatisfaction = randomInt(91, 99);
+        const rollingRating = randomInt(45, 50) / 10;
+        satisfactionEl.textContent = `${rollingSatisfaction}%`;
+        ratingEl.textContent = `${rollingRating.toFixed(1)}/5`;
+      }, 90);
+    } else {
+      satisfactionEl.textContent = "--";
+      ratingEl.textContent = "--";
+    }
+
+    const endpoint =
+      "https://script.google.com/macros/s/AKfycbw1GAY8Rl9U1eW7KW46zne8WBWP8KF1SryZ2wBu2TepBWUaW5RTLweKv3GCcIvYrA/exec";
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Metrics request failed");
+      const data = await response.json();
+      const averageRating = String(data?.averageRating || "").trim();
+      const satisfactionPercent = String(data?.satisfactionPercent || "").trim();
+      const reviewCount = Number(data?.reviewCount ?? data?.totalReviews);
+      if (rollingTimer) {
+        window.clearInterval(rollingTimer);
+        rollingTimer = null;
+      }
+
+      if (/^\d+(\.\d+)?\/5$/.test(averageRating)) {
+        const ratingValue = Number(averageRating.replace("/5", ""));
+        const ratingStart = parseMetricNumber(ratingEl.textContent);
+        animateMetricValue(ratingStart, ratingValue, 950, (value) => {
+          ratingEl.textContent = `${value.toFixed(1)}/5`;
+        });
+      }
+      if (/^\d+%$/.test(satisfactionPercent)) {
+        const satisfactionValue = Number(satisfactionPercent.replace("%", ""));
+        const satisfactionStart = parseMetricNumber(satisfactionEl.textContent);
+        animateMetricValue(satisfactionStart, satisfactionValue, 900, (value) => {
+          satisfactionEl.textContent = `${Math.round(value)}%`;
+        });
+      }
+      if (Number.isFinite(reviewCount) && reviewCount > 0 && reviewCountEl) {
+        reviewCountEl.hidden = false;
+        reviewCountEl.textContent = `Based on ${reviewCount} review${reviewCount === 1 ? "" : "s"}`;
+      }
+    } catch (error) {
+      if (rollingTimer) {
+        window.clearInterval(rollingTimer);
+      }
+      satisfactionEl.textContent = "--";
+      ratingEl.textContent = "--";
+      if (reviewCountEl) {
+        reviewCountEl.hidden = true;
+      }
+    }
+  };
+
+  initHomeMetrics();
+
+  const initContactMap = async () => {
+    const mapEl = document.getElementById("contactMap");
+    if (!mapEl) return;
+
+    const renderIframeFallback = () => {
+      mapEl.innerHTML = `
+        <iframe
+          src="https://maps.google.com/maps?hl=en&q=Dubai,%20UAE&z=10&output=embed"
+          title="Dubai, UAE on Google Maps"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+      `;
+    };
+
+    const hasMissingOrPlaceholderKey = () => {
+      try {
+        const script = Array.from(document.scripts).find((el) =>
+          el.src.includes("maps.googleapis.com/maps/api/js")
+        );
+        if (!script) return true;
+        const key = new URL(script.src).searchParams.get("key") || "";
+        return !key || key === "YOUR_GOOGLE_MAPS_API_KEY";
+      } catch (error) {
+        return true;
+      }
+    };
+
+    const waitForMapsApi = async (maxWaitMs = 9000) => {
+      const start = Date.now();
+      while (Date.now() - start < maxWaitMs) {
+        if (window.google?.maps?.importLibrary) return true;
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+      return false;
+    };
+
+    if (hasMissingOrPlaceholderKey()) {
+      renderIframeFallback();
+      return;
+    }
+
+    const mapsReady = await waitForMapsApi();
+    if (!mapsReady) {
+      renderIframeFallback();
+      return;
+    }
+
+    try {
+      const { Map } = await google.maps.importLibrary("maps");
+      const dubaiCenter = { lat: 25.2048, lng: 55.2708 };
+
+      new Map(mapEl, {
+        center: dubaiCenter,
+        zoom: 10,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        gestureHandling: "cooperative",
+        colorScheme: google.maps.ColorScheme.DARK,
+      });
+
+      // If Google returns its auth/error overlay, swap to reliable iframe view.
+      window.setTimeout(() => {
+        if (mapEl.querySelector(".gm-err-container, .gm-err-message")) {
+          renderIframeFallback();
+        }
+      }, 1200);
+    } catch (error) {
+      renderIframeFallback();
+    }
+  };
+
+  initContactMap();
+
+  const contactForm = document.getElementById("contact-form");
   const status = document.getElementById("formStatus");
+  const testToastBtn = document.getElementById("testToastBtn");
+  const inquiryToast = document.getElementById("inquiryToast");
+  const inquiryToastOverlay = document.getElementById("inquiryToastOverlay");
+  const requiredFieldsMessage = "Please complete all required fields.";
+  let inquiryToastTimer = null;
+  const phoneInput = document.getElementById("phone-number");
+  const submitButton = contactForm?.querySelector('button[type="submit"]');
+  const phoneInputInstance =
+    phoneInput && window.intlTelInput
+      ? window.intlTelInput(phoneInput, {
+          initialCountry: "ae",
+          separateDialCode: true,
+          preferredCountries: ["ae"],
+        })
+      : null;
+  const updatePhoneInputOffset = () => {
+    if (!phoneInput) return;
+    const itiWrap = phoneInput.closest(".iti");
+    const selectedCountryEl = itiWrap?.querySelector(".iti__selected-country");
+    if (!itiWrap || !selectedCountryEl) return;
+    const offset = Math.ceil(selectedCountryEl.getBoundingClientRect().width) + 22;
+    itiWrap.style.setProperty("--phone-input-offset", `${offset}px`);
+  };
+  const pinUaeToTop = () => {
+    if (!phoneInput) return;
+    const itiWrap = phoneInput.closest(".iti");
+    const listEl = itiWrap?.querySelector(".iti__country-list");
+    if (!listEl) return;
+
+    const uaeEl = listEl.querySelector('.iti__country[data-country-code="ae"]');
+    if (!uaeEl) return;
+
+    const divider = listEl.querySelector(".iti__divider");
+    if (divider) divider.remove();
+
+    if (listEl.firstElementChild !== uaeEl) {
+      listEl.insertBefore(uaeEl, listEl.firstChild);
+    }
+  };
+  const sanitizePhoneToDigits = () => {
+    if (!phoneInput) return;
+    const digitsOnly = phoneInput.value.replace(/\D+/g, "").slice(0, 12);
+    if (phoneInput.value !== digitsOnly) {
+      phoneInput.value = digitsOnly;
+    }
+  };
+
+  if (phoneInputInstance && phoneInput) {
+    phoneInputInstance.setCountry("ae");
+    window.setTimeout(updatePhoneInputOffset, 0);
+    window.setTimeout(pinUaeToTop, 0);
+    phoneInput.addEventListener("input", sanitizePhoneToDigits);
+    phoneInput.addEventListener("countrychange", updatePhoneInputOffset);
+    phoneInput.addEventListener("countrychange", pinUaeToTop);
+    phoneInput.addEventListener("focus", pinUaeToTop);
+    phoneInput
+      .closest(".iti")
+      ?.querySelector(".iti__selected-country")
+      ?.addEventListener("click", () => window.setTimeout(pinUaeToTop, 0));
+    window.addEventListener("resize", updatePhoneInputOffset);
+  }
+
+  const setFieldErrorState = (field, hasError) => {
+    const fieldWrap = field.closest(".field");
+    fieldWrap?.classList.toggle("has-error", hasError);
+  };
+
+  const clearAllFieldErrors = () => {
+    contactForm
+      ?.querySelectorAll(".field.has-error")
+      .forEach((el) => el.classList.remove("has-error"));
+  };
+
+  const validateRequiredFields = () => {
+    if (!contactForm) return false;
+    let hasError = false;
+    const requiredFields = contactForm.querySelectorAll(
+      "input[required], select[required], textarea[required]"
+    );
+
+    requiredFields.forEach((field) => {
+      const isCheckbox = field instanceof HTMLInputElement && field.type === "checkbox";
+      const value = String(field.value || "").trim();
+      const isValid = isCheckbox ? field.checked : Boolean(value);
+      setFieldErrorState(field, !isValid);
+      if (!isValid) hasError = true;
+    });
+
+    return hasError;
+  };
+
+  const areRequiredFieldsComplete = () => {
+    if (!contactForm) return false;
+    const requiredFields = contactForm.querySelectorAll(
+      "input[required], select[required], textarea[required]"
+    );
+
+    for (const field of requiredFields) {
+      const isCheckbox = field instanceof HTMLInputElement && field.type === "checkbox";
+      const value = String(field.value || "").trim();
+      const isValid = isCheckbox ? field.checked : Boolean(value);
+      if (!isValid) return false;
+    }
+
+    if (phoneInputInstance) {
+      const dialCode = phoneInputInstance.getSelectedCountryData().dialCode || "";
+      if (!dialCode) return false;
+    }
+
+    return true;
+  };
+
+  const clearRequiredMessageIfComplete = () => {
+    if (!status) return;
+    if (
+      status.classList.contains("error") &&
+      status.textContent === requiredFieldsMessage &&
+      areRequiredFieldsComplete()
+    ) {
+      status.textContent = "";
+      status.className = "status";
+    }
+  };
+
+  const autoResizeTextarea = (textarea) => {
+    if (!(textarea instanceof HTMLTextAreaElement)) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  };
+
+  const contactTextareas = contactForm ? Array.from(contactForm.querySelectorAll("textarea")) : [];
+  contactTextareas.forEach((textarea) => {
+    autoResizeTextarea(textarea);
+    textarea.addEventListener("input", () => autoResizeTextarea(textarea));
+  });
+
+  const showInquiryToast = (
+    message = "Thanks — your inquiry has been sent. We’ll get back to you as soon as possible."
+  ) => {
+    if (!inquiryToast || !inquiryToastOverlay) return;
+    inquiryToast.textContent = message;
+    inquiryToastOverlay.classList.add("is-visible");
+    inquiryToastOverlay.setAttribute("aria-hidden", "false");
+    if (inquiryToastTimer) {
+      window.clearTimeout(inquiryToastTimer);
+    }
+    inquiryToastTimer = window.setTimeout(() => {
+      inquiryToastOverlay.classList.remove("is-visible");
+      inquiryToastOverlay.setAttribute("aria-hidden", "true");
+    }, 3000);
+  };
+  window.__bywShowInquiryToast = showInquiryToast;
+
+  testToastBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    showInquiryToast();
+  });
+
+  contactForm
+    ?.querySelectorAll("input[required], select[required], textarea[required]")
+    .forEach((field) => {
+      const eventName = field instanceof HTMLSelectElement ? "change" : "input";
+      field.addEventListener(eventName, () => {
+        const isCheckbox = field instanceof HTMLInputElement && field.type === "checkbox";
+        const value = String(field.value || "").trim();
+        const isValid = isCheckbox ? field.checked : Boolean(value);
+        setFieldErrorState(field, !isValid);
+        clearRequiredMessageIfComplete();
+      });
+      if (field instanceof HTMLInputElement && field.type === "checkbox") {
+        field.addEventListener("change", () => {
+          setFieldErrorState(field, !field.checked);
+          clearRequiredMessageIfComplete();
+        });
+      }
+    });
+
+  phoneInput?.addEventListener("countrychange", clearRequiredMessageIfComplete);
 
   contactForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!status) return;
 
+    clearAllFieldErrors();
+
     const formData = new FormData(contactForm);
-    const name = String(formData.get("name") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const message = String(formData.get("message") || "").trim();
-    const consent = formData.get("consent");
+    const fullName = String(formData.get("Full Name") || "").trim();
+    const email = String(formData.get("Email Address") || "").trim();
+    const phone = String(formData.get("phone_raw") || "").trim();
+    const phoneCode = phoneInputInstance
+      ? `+${phoneInputInstance.getSelectedCountryData().dialCode || ""}`
+      : "";
+    const service = String(formData.get("Service Needed") || "").trim();
+    const timeline = String(formData.get("Timeline") || "").trim();
+    const projectDetails = String(formData.get("Project Details") || "").trim();
+    const designReferences = String(formData.get("Design References or Examples") || "").trim();
+    const preferredContactMethod = String(formData.get("Preferred Contact Method") || "").trim();
+    const consent = formData.get("Consent to Contact");
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!name || !email || !message) {
-      status.textContent = "Please complete all required fields.";
+    const hasRequiredFieldErrors = validateRequiredFields();
+    if (hasRequiredFieldErrors || (phoneInputInstance && !phoneCode)) {
+      if (phoneInputInstance && !phoneCode && phoneInput) {
+        setFieldErrorState(phoneInput, true);
+      }
+      status.textContent = requiredFieldsMessage;
       status.className = "status error";
       return;
     }
 
     if (!emailRegex.test(email)) {
+      const emailField = contactForm.querySelector("#email-address");
+      if (emailField) setFieldErrorState(emailField, true);
       status.textContent = "Please enter a valid email address.";
       status.className = "status error";
       return;
     }
 
     if (!consent) {
+      const consentField = contactForm.querySelector('input[name="Consent to Contact"]');
+      if (consentField) setFieldErrorState(consentField, true);
       status.textContent = "Please agree to be contacted before sending.";
       status.className = "status error";
       return;
     }
 
-    const submissions = JSON.parse(
-      localStorage.getItem("byw_contact_submissions") || "[]"
-    );
-    submissions.push({
-      name,
-      email,
-      service: String(formData.get("service") || ""),
-      budget: String(formData.get("budget") || ""),
-      message,
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem("byw_contact_submissions", JSON.stringify(submissions));
+    const accessKey =
+      String(contactForm.querySelector('input[name="access_key"]')?.value || "").trim();
+    const fromName =
+      String(contactForm.querySelector('input[name="from_name"]')?.value || "").trim() ||
+      "Build Your Web";
+    const subject = service;
 
-    status.textContent =
-      "Thanks! Your message has been saved in this browser. We will reply within 1 business day.";
-    status.className = "status success";
-    contactForm.reset();
+    if (!accessKey || accessKey === "YOUR_WEB3FORMS_ACCESS_KEY") {
+      status.textContent = "Please add your Web3Forms access key to enable submissions.";
+      status.className = "status error";
+      return;
+    }
+
+    const submission = new FormData();
+    submission.append("access_key", accessKey);
+    submission.append("from_name", fromName);
+    submission.append("subject", subject);
+    submission.append("Full Name", fullName);
+    submission.append("Email Address", email);
+    submission.append("Phone Number", phoneCode ? `${phoneCode} ${phone}` : phone);
+    submission.append("Service Needed", service);
+    if (timeline) submission.append("Timeline", timeline);
+    submission.append("Project Details", projectDetails);
+    if (designReferences) {
+      submission.append("Design References or Examples", designReferences);
+    }
+    if (preferredContactMethod) {
+      submission.append("Preferred Contact Method", preferredContactMethod);
+    }
+
+    const actionUrl = contactForm.getAttribute("action") || "https://api.web3forms.com/submit";
+    submitButton?.setAttribute("disabled", "disabled");
+
+    fetch(actionUrl, {
+      method: "POST",
+      body: submission,
+      headers: {
+        Accept: "application/json",
+      },
+    })
+      .then((response) => response.json())
+      .then((result) => {
+        if (!result.success) {
+          throw new Error(result.message || "Unable to send inquiry right now.");
+        }
+
+        status.textContent = "";
+        status.className = "status";
+        showInquiryToast();
+        contactForm.reset();
+        phoneInputInstance?.setCountry("ae");
+        updatePhoneInputOffset();
+        window.setTimeout(() => {
+          contactTextareas.forEach((textarea) => autoResizeTextarea(textarea));
+        }, 0);
+      })
+      .catch((error) => {
+        status.textContent = error.message || "Something went wrong. Please try again.";
+        status.className = "status error";
+      })
+      .finally(() => {
+        submitButton?.removeAttribute("disabled");
+      });
   });
 });

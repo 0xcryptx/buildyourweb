@@ -43,7 +43,11 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/css/style.css?v=47" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/css/intlTelInput.css"
+    />
+    <link rel="stylesheet" href="assets/css/style.css?v=65" />
   </head>
   <body data-page="contact">
     <header class="site-header">
@@ -80,11 +84,10 @@
         <div class="container">
           <div class="section-title reveal">
             <span class="kicker">Contact Us</span>
-            <h1>Tell us what you need and we will get back quickly.</h1>
+            <h1>Tell us about your project</h1>
             <p>
-              This is a front-end-only contact form that validates your input in
-              the browser and stores submissions locally (no backend required),
-              including requests for custom link hub pages.
+              Fill out the form below and share what you’re looking for. We’ll
+              review your request and get back to you as soon as possible.
             </p>
           </div>
         </div>
@@ -92,63 +95,135 @@
 
       <section>
         <div class="container contact-wrap">
-          <form id="contactForm" class="reveal" novalidate>
+          <form
+            id="contact-form"
+            class="reveal"
+            action="https://api.web3forms.com/submit"
+            method="POST"
+            novalidate
+          >
+            <input type="hidden" name="access_key" value="435716ae-fb2f-4300-a21e-dfc6bfb8d455" />
+            <input type="hidden" name="from_name" value="Build Your Web" />
+            <input type="hidden" name="subject" value="New Build Your Web Project Inquiry" />
             <div class="field">
-              <label for="name">Full name *</label>
-              <input id="name" name="name" type="text" required />
+              <label for="full-name">Full name *</label>
+              <input
+                id="full-name"
+                name="Full Name"
+                type="text"
+                placeholder="Your full name"
+                required
+              />
             </div>
             <div class="field">
-              <label for="email">Email address *</label>
-              <input id="email" name="email" type="email" required />
+              <label for="email-address">Email address *</label>
+              <input
+                id="email-address"
+                name="Email Address"
+                type="email"
+                placeholder="you@example.com"
+                required
+              />
             </div>
             <div class="field">
-              <label for="service">Service needed</label>
-              <select id="service" name="service">
+              <label for="phone-number">Phone number *</label>
+              <input
+                id="phone-number"
+                name="phone_raw"
+                type="tel"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="12"
+                placeholder="50 123 4567"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="service-needed">Service needed *</label>
+              <select id="service-needed" name="Service Needed" required>
+                <option value="" selected disabled>Select a service</option>
+                <option value="Custom Link Hub Page">Custom Link Hub Page</option>
                 <option value="Portfolio Website">Portfolio Website</option>
                 <option value="Landing Page">Landing Page</option>
                 <option value="Multi-Page Website">Multi-Page Website</option>
-                <option value="Custom Link Hub Page">Custom Link Hub Page</option>
+                <option value="Not sure yet">Not sure yet</option>
               </select>
             </div>
             <div class="field">
-              <label for="budget">Budget range</label>
-              <select id="budget" name="budget">
-                <option value="$500 - $1,500">$500 - $1,500</option>
-                <option value="$1,500 - $3,000">$1,500 - $3,000</option>
-                <option value="$3,000+">$3,000+</option>
+              <label for="timeline">Timeline</label>
+              <select id="timeline" name="Timeline">
+                <option value="" selected disabled>Select a timeline</option>
+                <option value="As soon as possible">As soon as possible</option>
+                <option value="Within 1 week">Within 1 week</option>
+                <option value="Within 2 weeks">Within 2 weeks</option>
+                <option value="Within 1 month">Within 1 month</option>
+                <option value="Flexible / not sure yet">Flexible / not sure yet</option>
               </select>
             </div>
             <div class="field">
-              <label for="message">Project details *</label>
+              <label for="project-details">Project details *</label>
               <textarea
-                id="message"
-                name="message"
-                placeholder="Tell us your goals, timeline, and any style direction."
+                id="project-details"
+                name="Project Details"
+                placeholder="Tell us what you need, what the website is for, and any style or content direction you already have."
                 required
               ></textarea>
             </div>
             <div class="field">
-              <label>
-                <input type="checkbox" name="consent" value="yes" />
+              <label for="design-references">Design references or examples</label>
+              <textarea
+                id="design-references"
+                name="Design References or Examples"
+                placeholder="Add any website links, inspiration, or visual references you want us to look at."
+              ></textarea>
+            </div>
+            <div class="field">
+              <label for="preferred-contact-method">Preferred contact method *</label>
+              <select id="preferred-contact-method" name="Preferred Contact Method" required>
+                <option value="" selected disabled>Select a contact method</option>
+                <option value="Email">Email</option>
+                <option value="WhatsApp">WhatsApp</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="checkbox-label">
+                <input type="checkbox" name="Consent to Contact" value="Yes" required />
                 I agree to be contacted about this project. *
               </label>
             </div>
-            <button type="submit" class="btn btn-primary">Send Message</button>
-            <p class="form-note">
-              No backend is used: submission is saved in your browser for demo
-              purposes.
-            </p>
+            <button type="submit" class="btn btn-primary">Send Inquiry</button>
             <p id="formStatus" class="status" aria-live="polite"></p>
           </form>
 
-          <div class="map-frame reveal">
-            <iframe
-              src="https://www.google.com/maps?q=Manhattan,+New+York,+NY&output=embed"
-              title="Studio location map"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-            ></iframe>
-          </div>
+          <aside class="contact-side-panel reveal" aria-label="Office map">
+            <article class="contact-direct-card" aria-label="Direct contact details">
+              <h3>Get in touch</h3>
+              <p class="contact-direct-row">
+                <span class="contact-direct-label">Email</span>
+                <a class="contact-direct-link" href="mailto:buildyourweb.ae@gmail.com">
+                  buildyourweb.ae@gmail.com
+                </a>
+              </p>
+              <p class="contact-direct-row">
+                <span class="contact-direct-label">Phone</span>
+                <a
+                  class="contact-direct-link"
+                  href="https://wa.me/message/2WZRG66PRXP6H1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  +971 50 993 7517
+                </a>
+              </p>
+              <p class="contact-direct-row">
+                <span class="contact-direct-label">Location</span>
+                <span>Al Barsha 1, Dubai</span>
+              </p>
+            </article>
+            <div id="contactMap" class="contact-map-canvas" aria-label="Map of Al Barsha 1, Dubai, UAE">
+              <p class="contact-map-fallback">Loading map...</p>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -166,13 +241,52 @@
           />
         </a>
         <div class="footer-meta" aria-label="Footer">
-          <a class="footer-email" href="mailto:hello@buildyourweb.com">hello@buildyourweb.com</a>
+          <a class="footer-email" href="mailto:buildyourweb.ae@gmail.com">buildyourweb.ae@gmail.com</a>
           <span class="footer-divider" aria-hidden="true">•</span>
           <span class="footer-copy">© 2026 BYW</span>
         </div>
       </div>
     </footer>
 
-    <script src="assets/js/main.js?v=24"></script>
+    <div id="inquiryToastOverlay" class="inquiry-toast-overlay" aria-hidden="true">
+      <div id="inquiryToast" class="inquiry-toast" role="status" aria-live="polite">
+        Thanks — your inquiry has been sent. We’ll get back to you as soon as possible.
+      </div>
+    </div>
+
+    <script
+      async
+      src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&v=beta&loading=async"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/js/intlTelInput.min.js"></script>
+    <script src="assets/js/main.js?v=29"></script>
+    <script>
+      (function () {
+        var toast = document.getElementById("inquiryToast");
+        var overlay = document.getElementById("inquiryToastOverlay");
+        var testBtn = document.getElementById("testToastBtn");
+        var timer = null;
+
+        window.__bywShowInquiryToast = function () {
+          if (!toast || !overlay) return;
+          toast.textContent =
+            "Thanks — your inquiry has been sent. We’ll get back to you as soon as possible.";
+          overlay.classList.add("is-visible");
+          overlay.setAttribute("aria-hidden", "false");
+          if (timer) window.clearTimeout(timer);
+          timer = window.setTimeout(function () {
+            overlay.classList.remove("is-visible");
+            overlay.setAttribute("aria-hidden", "true");
+          }, 3000);
+        };
+
+        if (testBtn) {
+          testBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            window.__bywShowInquiryToast();
+          });
+        }
+      })();
+    </script>
   </body>
   </html>
