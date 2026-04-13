@@ -1767,6 +1767,8 @@ textarea {
 
   [data-page="contact"] #contact-form {
     max-height: none;
+    /* Inline intl-tel-input dropdown is position:absolute; parent overflow-y:auto clips it on small screens. */
+    overflow: visible;
   }
 
   .contact-side-panel {

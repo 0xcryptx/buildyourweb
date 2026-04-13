@@ -143,10 +143,8 @@
                 id="phone-number"
                 name="phone_raw"
                 type="tel"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength="12"
-                placeholder="50 123 4567"
+                inputmode="tel"
+                autocomplete="tel-national"
                 required
               />
             </div>
@@ -299,7 +297,7 @@
 
     <!-- Maps API is injected from main.js on desktop only — avoids iOS compositor issues from loading it on phone -->
     <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/js/intlTelInput.min.js"></script>
-    <script src="assets/js/main.js?v=67"></script>
+    <script src="assets/js/main.js?v=68"></script>
     <script>
       (function () {
         var toast = document.getElementById("inquiryToast");

@@ -1030,12 +1030,27 @@ document.addEventListener("DOMContentLoaded", () => {
   let inquiryToastTimer = null;
   const phoneInput = document.getElementById("phone-number");
   const submitButton = contactForm?.querySelector('button[type="submit"]');
+  const isContactPhoneNarrowViewport = () =>
+    window.matchMedia("(max-width: 980px)").matches;
+
+  const intlTelUtilsCdn = "https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/js/utils.js";
+
   const phoneInputInstance =
     phoneInput && window.intlTelInput
       ? window.intlTelInput(phoneInput, {
           initialCountry: "ae",
+          countryOrder: ["ae"],
           separateDialCode: true,
-          preferredCountries: ["ae"],
+          nationalMode: true,
+          loadUtils: () => import(intlTelUtilsCdn),
+          autoPlaceholder: "aggressive",
+          placeholderNumberType: "MOBILE",
+          formatAsYouType: true,
+          formatOnDisplay: true,
+          // Default is mobile-only validation; null allows landlines and other valid types worldwide.
+          validationNumberTypes: null,
+          // Mobile only: library defaults to fullscreen popup; our CSS hides `.iti__search-input`, which breaks that mode.
+          ...(isContactPhoneNarrowViewport() ? { useFullscreenPopup: false } : {}),
         })
       : null;
   const updatePhoneInputOffset = () => {
@@ -1062,19 +1077,14 @@ document.addEventListener("DOMContentLoaded", () => {
       listEl.insertBefore(uaeEl, listEl.firstChild);
     }
   };
-  const sanitizePhoneToDigits = () => {
-    if (!phoneInput) return;
-    const digitsOnly = phoneInput.value.replace(/\D+/g, "").slice(0, 12);
-    if (phoneInput.value !== digitsOnly) {
-      phoneInput.value = digitsOnly;
-    }
-  };
-
   if (phoneInputInstance && phoneInput) {
     phoneInputInstance.setCountry("ae");
     window.setTimeout(updatePhoneInputOffset, 0);
     window.setTimeout(pinUaeToTop, 0);
-    phoneInput.addEventListener("input", sanitizePhoneToDigits);
+    phoneInputInstance.promise?.then?.(() => {
+      updatePhoneInputOffset();
+      pinUaeToTop();
+    });
     phoneInput.addEventListener("countrychange", updatePhoneInputOffset);
     phoneInput.addEventListener("countrychange", pinUaeToTop);
     phoneInput.addEventListener("focus", pinUaeToTop);
@@ -1125,11 +1135,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const value = String(field.value || "").trim();
       const isValid = isCheckbox ? field.checked : Boolean(value);
       if (!isValid) return false;
-    }
-
-    if (phoneInputInstance) {
-      const dialCode = phoneInputInstance.getSelectedCountryData().dialCode || "";
-      if (!dialCode) return false;
     }
 
     return true;
@@ -1203,7 +1208,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
   phoneInput?.addEventListener("countrychange", clearRequiredMessageIfComplete);
 
-  contactForm?.addEventListener("submit", (event) => {
+  const resolvePhoneForSubmit = async () => {
+    if (!phoneInput) {
+      const raw = String(contactForm ? new FormData(contactForm).get("phone_raw") || "" : "").trim();
+      return raw ? { ok: true, value: raw } : { ok: false, reason: "empty" };
+    }
+    if (!phoneInputInstance) {
+      const raw = String(phoneInput.value || "").trim();
+      return raw ? { ok: true, value: raw } : { ok: false, reason: "empty" };
+    }
+    await phoneInputInstance.promise.catch(() => {});
+    const trimmed = String(phoneInput.value || "").trim();
+    if (!trimmed) return { ok: false, reason: "empty" };
+
+    const utils = window.intlTelInput?.utils;
+    if (utils) {
+      if (phoneInputInstance.isValidNumber() !== true) {
+        return { ok: false, reason: "invalid" };
+      }
+      const e164 = phoneInputInstance.getNumber(utils.numberFormat.E164);
+      return e164 ? { ok: true, value: e164 } : { ok: false, reason: "invalid" };
+    }
+
+    const nationalDigits = trimmed.replace(/\D/g, "");
+    const dialCode = phoneInputInstance.getSelectedCountryData().dialCode || "";
+    if (!dialCode || nationalDigits.length < 6) {
+      return { ok: false, reason: "invalid" };
+    }
+    return { ok: true, value: `+${dialCode}${nationalDigits}` };
+  };
+
+  contactForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!status) return;
 
@@ -1212,10 +1247,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData(contactForm);
     const fullName = String(formData.get("Full Name") || "").trim();
     const email = String(formData.get("Email Address") || "").trim();
-    const phone = String(formData.get("phone_raw") || "").trim();
-    const phoneCode = phoneInputInstance
-      ? `+${phoneInputInstance.getSelectedCountryData().dialCode || ""}`
-      : "";
     const service = String(formData.get("Service Needed") || "").trim();
     const timeline = String(formData.get("Timeline") || "").trim();
     const projectDetails = String(formData.get("Project Details") || "").trim();
@@ -1225,11 +1256,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const hasRequiredFieldErrors = validateRequiredFields();
-    if (hasRequiredFieldErrors || (phoneInputInstance && !phoneCode)) {
-      if (phoneInputInstance && !phoneCode && phoneInput) {
-        setFieldErrorState(phoneInput, true);
-      }
+    if (hasRequiredFieldErrors) {
       status.textContent = requiredFieldsMessage;
+      status.className = "status error";
+      return;
+    }
+
+    const phoneResult = await resolvePhoneForSubmit();
+    if (!phoneResult.ok) {
+      if (phoneInput) setFieldErrorState(phoneInput, true);
+      status.textContent =
+        phoneResult.reason === "invalid"
+          ? "Please enter a valid phone number for the selected country."
+          : requiredFieldsMessage;
       status.className = "status error";
       return;
     }
@@ -1269,7 +1308,7 @@ document.addEventListener("DOMContentLoaded", () => {
     submission.append("subject", subject);
     submission.append("Full Name", fullName);
     submission.append("Email Address", email);
-    submission.append("Phone Number", phoneCode ? `${phoneCode} ${phone}` : phone);
+    submission.append("Phone Number", phoneResult.value);
     submission.append("Service Needed", service);
     if (timeline) submission.append("Timeline", timeline);
     submission.append("Project Details", projectDetails);
