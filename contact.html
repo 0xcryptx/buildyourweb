@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Build Your Web (BYW) | Modern Website Design</title>
     <meta
       name="description"
@@ -47,9 +50,10 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/css/intlTelInput.css"
     />
-    <link rel="stylesheet" href="assets/css/style.css?v=65" />
+    <link rel="stylesheet" href="assets/css/style.css?v=140" />
   </head>
   <body data-page="contact">
+    <div class="contact-safe-matte" aria-hidden="true"></div>
     <header class="site-header">
       <div class="container nav-wrap">
         <a class="logo" href="index.html">
@@ -72,7 +76,7 @@
         <ul class="nav-links" id="site-nav">
           <li><a href="index.html" data-page-link="home">Home</a></li>
           <li><a href="services.html" data-page-link="services">Services</a></li>
-          <li><a href="portfolio.html" data-page-link="portfolio">Projects</a></li>
+          <li><a href="projects.html" data-page-link="projects">Projects</a></li>
           <li><a href="about.html" data-page-link="about">About</a></li>
           <li><a href="contact.html" data-page-link="contact">Contact</a></li>
         </ul>
@@ -86,8 +90,7 @@
             <span class="kicker">Contact Us</span>
             <h1>Tell us about your project</h1>
             <p>
-              Fill out the form below and share what you’re looking for. We’ll
-              review your request and get back to you as soon as possible.
+              Share a few details about your project and we’ll get back to you soon.
             </p>
           </div>
         </div>
@@ -217,13 +220,35 @@
               </p>
               <p class="contact-direct-row">
                 <span class="contact-direct-label">Location</span>
-                <span>Al Barsha 1, Dubai</span>
+                <span>Dubai, United Arab Emirates</span>
               </p>
             </article>
-            <div id="contactMap" class="contact-map-canvas" aria-label="Map of Al Barsha 1, Dubai, UAE">
+            <div id="contactMap" class="contact-map-canvas" aria-label="Map of Dubai, United Arab Emirates">
               <p class="contact-map-fallback">Loading map...</p>
             </div>
           </aside>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="cta reveal">
+            <div>
+              <h2>Worked with BYW before?</h2>
+              <p>
+                Leave a quick review and share your experience. Your feedback helps build trust
+                and supports future clients.
+              </p>
+            </div>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLScJII8Ozb4XBYv3jEp4G6UbHqwdYgGrli6ISf8xqpjFuV9wtA/viewform?usp=dialog"
+              class="btn btn-primary"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Leave a Review
+            </a>
+          </div>
         </div>
       </section>
 
@@ -243,6 +268,15 @@
         <div class="footer-meta" aria-label="Footer">
           <a class="footer-email" href="mailto:buildyourweb.ae@gmail.com">buildyourweb.ae@gmail.com</a>
           <span class="footer-divider" aria-hidden="true">•</span>
+          <a
+            class="footer-phone"
+            href="https://wa.me/message/2WZRG66PRXP6H1"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="WhatsApp +971 50 993 7517"
+            >WhatsApp</a
+          >
+          <span class="footer-divider" aria-hidden="true">•</span>
           <span class="footer-copy">© 2026 BYW</span>
         </div>
       </div>
@@ -254,12 +288,9 @@
       </div>
     </div>
 
-    <script
-      async
-      src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&v=beta&loading=async"
-    ></script>
+    <!-- Maps API is injected from main.js on desktop only — avoids iOS compositor issues from loading it on phone -->
     <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/js/intlTelInput.min.js"></script>
-    <script src="assets/js/main.js?v=29"></script>
+    <script src="assets/js/main.js?v=66"></script>
     <script>
       (function () {
         var toast = document.getElementById("inquiryToast");

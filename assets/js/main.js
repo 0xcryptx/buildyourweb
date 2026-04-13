@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
     "(prefers-reduced-motion: reduce)"
   ).matches;
 
+  const isMobileCalmViewport = () => window.matchMedia("(max-width: 980px)").matches;
+
   const escapeHtml = (value) =>
     String(value)
       .replace(/&/g, "&amp;")
@@ -389,25 +391,165 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const page = document.body.dataset.page;
-  const navLinks = document.querySelectorAll("[data-page-link]");
   const menuToggle = document.querySelector(".menu-toggle");
   const navList = document.querySelector(".nav-links");
+  const isMobileNavViewport = () => window.matchMedia("(max-width: 980px)").matches;
+  let mobileOverlay = null;
+  let mobileDrawer = null;
+  let mobilePanel = null;
+  let mobileTab = null;
+  let navTrigger = menuToggle;
 
-  navLinks.forEach((link) => {
-    if (link.dataset.pageLink === page) {
-      link.classList.add("active");
+  const syncMobileTab = (open) => {
+    if (!mobileTab) return;
+    mobileTab.textContent = open ? "\u203a" : "\u2261";
+    mobileTab.setAttribute("aria-label", open ? "Back, close menu" : "Open menu");
+  };
+
+  if (navList) {
+    mobileOverlay = document.createElement("div");
+    mobileOverlay.className = "mobile-nav-overlay";
+    mobileOverlay.setAttribute("aria-hidden", "true");
+
+    mobileDrawer = document.createElement("div");
+    mobileDrawer.className = "mobile-nav-drawer";
+
+    mobileTab = document.createElement("button");
+    mobileTab.type = "button";
+    mobileTab.className = "mobile-nav-tab";
+    mobileTab.setAttribute("aria-controls", "mobile-site-nav");
+    mobileTab.setAttribute("aria-expanded", "false");
+    mobileTab.setAttribute("aria-label", "Open menu");
+    mobileTab.textContent = "\u2261";
+
+    mobilePanel = document.createElement("div");
+    mobilePanel.className = "mobile-nav-panel";
+
+    const mobileList = document.createElement("ul");
+    mobileList.className = "mobile-nav-list";
+    mobileList.id = "mobile-site-nav";
+    const navItems = Array.from(navList.querySelectorAll("a[data-page-link]")).map((anchor) => {
+      return {
+        href: anchor.getAttribute("href") || "#",
+        pageLink: anchor.getAttribute("data-page-link") || "",
+        text: (anchor.textContent || "").trim(),
+      };
+    });
+    const fallbackItems = [
+      { href: "index.html", pageLink: "home", text: "Home" },
+      { href: "services.html", pageLink: "services", text: "Services" },
+      { href: "projects.html", pageLink: "projects", text: "Projects" },
+      { href: "about.html", pageLink: "about", text: "About" },
+      { href: "contact.html", pageLink: "contact", text: "Contact" },
+    ];
+    const listItems = navItems.length ? navItems : fallbackItems;
+    mobileList.innerHTML = listItems
+      .map(
+        (item) =>
+          `<li><a href="${item.href}" data-page-link="${item.pageLink}">${escapeHtml(item.text)}</a></li>`
+      )
+      .join("");
+
+    mobilePanel.appendChild(mobileList);
+    mobileDrawer.appendChild(mobileTab);
+    mobileDrawer.appendChild(mobilePanel);
+    document.body.appendChild(mobileOverlay);
+    document.body.appendChild(mobileDrawer);
+    navTrigger = mobileTab;
+
+    const positionMobileDrawer = () => {
+      if (!mobileDrawer || !isMobileNavViewport()) return;
+      const vv = window.visualViewport;
+      const topOffset = vv ? vv.offsetTop : 0;
+      mobileDrawer.style.top = `${Math.round(topOffset + 96)}px`;
+    };
+    positionMobileDrawer();
+    window.addEventListener("scroll", positionMobileDrawer, { passive: true });
+    window.addEventListener("resize", positionMobileDrawer);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("scroll", positionMobileDrawer);
+      window.visualViewport.addEventListener("resize", positionMobileDrawer);
     }
+
+    if (menuToggle) {
+      menuToggle.setAttribute("aria-hidden", "true");
+      menuToggle.setAttribute("tabindex", "-1");
+    }
+  }
+
+  const highlightActiveNavLinks = () => {
+    document.querySelectorAll("[data-page-link]").forEach((link) => {
+      link.classList.toggle("active", link.dataset.pageLink === page);
+    });
+  };
+
+  const closeMobileNav = () => {
+    navTrigger?.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("nav-open");
+    if (mobileOverlay) {
+      mobileOverlay.classList.remove("open");
+      mobileOverlay.setAttribute("aria-hidden", "true");
+    }
+    if (mobileDrawer) {
+      mobileDrawer.classList.remove("open");
+    }
+    syncMobileTab(false);
+  };
+
+  highlightActiveNavLinks();
+  closeMobileNav();
+
+  document.querySelectorAll("[data-page-link]").forEach((link) => {
     link.addEventListener("click", () => {
-      navList?.classList.remove("open");
-      menuToggle?.setAttribute("aria-expanded", "false");
+      if (isMobileNavViewport()) closeMobileNav();
     });
   });
 
-  menuToggle?.addEventListener("click", () => {
-    const expanded = menuToggle.getAttribute("aria-expanded") === "true";
-    menuToggle.setAttribute("aria-expanded", String(!expanded));
-    navList?.classList.toggle("open");
+  navTrigger?.addEventListener("click", () => {
+    if (!isMobileNavViewport() || !mobileOverlay || !mobileDrawer) return;
+    const expanded = navTrigger?.getAttribute("aria-expanded") === "true";
+    const nextExpanded = !expanded;
+    navTrigger?.setAttribute("aria-expanded", String(nextExpanded));
+    document.body.classList.toggle("nav-open", nextExpanded);
+    mobileOverlay.classList.toggle("open", nextExpanded);
+    mobileOverlay.setAttribute("aria-hidden", String(!nextExpanded));
+    mobileDrawer.classList.toggle("open", nextExpanded);
+    syncMobileTab(nextExpanded);
+    if (nextExpanded) {
+      const mobileList = mobilePanel?.querySelector(".mobile-nav-list");
+      if (mobileList) mobileList.scrollTop = 0;
+    }
   });
+
+  mobileOverlay?.addEventListener("click", (event) => {
+    if (!isMobileNavViewport()) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (mobileDrawer?.contains(target)) return;
+    closeMobileNav();
+  });
+
+  window.addEventListener("resize", () => {
+    if (!isMobileNavViewport()) {
+      closeMobileNav();
+    }
+  });
+
+  let openedAt = 0;
+  let openedScrollY = 0;
+  const markMenuOpenTime = () => {
+    openedAt = Date.now();
+    openedScrollY = window.scrollY;
+  };
+  const closeMenuOnUserScroll = () => {
+    if (!isMobileNavViewport()) return;
+    if (!document.body.classList.contains("nav-open")) return;
+    if (Date.now() - openedAt < 280) return;
+    if (Math.abs(window.scrollY - openedScrollY) < 6) return;
+    closeMobileNav();
+  };
+  navTrigger?.addEventListener("click", markMenuOpenTime);
+  window.addEventListener("scroll", closeMenuOnUserScroll, { passive: true });
 
   const reveals = document.querySelectorAll(".reveal");
   if ("IntersectionObserver" in window) {
@@ -427,9 +569,76 @@ document.addEventListener("DOMContentLoaded", () => {
     reveals.forEach((el) => el.classList.add("is-visible"));
   }
 
+  const projectsDeliveredMetric = document.getElementById("projectsDeliveredMetric");
+  let metricObserver = null;
+  if (projectsDeliveredMetric) {
+    projectsDeliveredMetric.textContent = "--";
+
+    const applyProjectCount = (count) => {
+      if (Number.isFinite(count) && count > 0) {
+        projectsDeliveredMetric.textContent = String(count);
+      }
+    };
+
+    const projectsUrl = new URL("projects.html", window.location.href).toString();
+    let didSetCount = false;
+
+    const trySetCount = (count) => {
+      if (didSetCount) return;
+      if (Number.isFinite(count) && count > 0) {
+        didSetCount = true;
+        applyProjectCount(count);
+        if (!("IntersectionObserver" in window)) {
+          animateNumber(projectsDeliveredMetric);
+        } else {
+          const rect = projectsDeliveredMetric.getBoundingClientRect();
+          const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+          if (isVisible) {
+            animateNumber(projectsDeliveredMetric);
+            if (metricObserver) metricObserver.unobserve(projectsDeliveredMetric);
+          }
+        }
+      }
+    };
+
+    const frame = document.createElement("iframe");
+    frame.src = projectsUrl;
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
+    frame.style.cssText =
+      "position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;";
+    frame.addEventListener("load", () => {
+      try {
+        const doc = frame.contentDocument;
+        const count = doc ? doc.querySelectorAll(".portfolio-grid .project").length : 0;
+        trySetCount(count);
+      } catch (_) {
+        // If iframe access is blocked, fetch fallback handles it.
+      } finally {
+        window.setTimeout(() => frame.remove(), 0);
+      }
+    });
+    document.body.appendChild(frame);
+
+    window
+      .fetch(projectsUrl, { cache: "no-store" })
+      .then((response) => (response.ok ? response.text() : ""))
+      .then((html) => {
+        if (!html) return;
+        const parsed = new window.DOMParser().parseFromString(html, "text/html");
+        const count = parsed.querySelectorAll(".portfolio-grid .project").length;
+        trySetCount(count);
+      })
+      .catch(() => {
+        // Counter intentionally depends on projects page only.
+      });
+  }
+
   const metricNums = document.querySelectorAll(".metric .num");
   const animateNumber = (el, duration = 1300) => {
+    if (el.dataset.metricAnimated === "true") return true;
     const raw = (el.textContent || "").trim();
+    if (!/\d/.test(raw)) return;
     const plus = raw.endsWith("+");
     const percent = raw.endsWith("%");
     const ratio = raw.includes("/");
@@ -456,18 +665,23 @@ document.addEventListener("DOMContentLoaded", () => {
         ? value.toFixed(1)
         : `${Math.round(value)}`;
       el.textContent = `${formatted}${suffix}`;
-      if (p < 1) window.requestAnimationFrame(frame);
+      if (p < 1) {
+        window.requestAnimationFrame(frame);
+      } else {
+        el.dataset.metricAnimated = "true";
+      }
     };
     window.requestAnimationFrame(frame);
+    return true;
   };
 
   if ("IntersectionObserver" in window) {
-    const metricObserver = new IntersectionObserver(
+    metricObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            animateNumber(entry.target);
-            metricObserver.unobserve(entry.target);
+            const didAnimate = animateNumber(entry.target);
+            if (didAnimate) metricObserver.unobserve(entry.target);
           }
         });
       },
@@ -479,6 +693,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const buttons = document.querySelectorAll(".btn");
   buttons.forEach((btn) => {
     btn.addEventListener("mousemove", (event) => {
+      if (isMobileCalmViewport()) return;
       const rect = btn.getBoundingClientRect();
       const x = event.clientX - rect.left - rect.width / 2;
       const y = event.clientY - rect.top - rect.height / 2;
@@ -486,6 +701,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.style.setProperty("--btn-y", `${y * 0.07}px`);
     });
     btn.addEventListener("mouseleave", () => {
+      if (isMobileCalmViewport()) return;
       btn.style.setProperty("--btn-x", "0px");
       btn.style.setProperty("--btn-y", "0px");
     });
@@ -494,6 +710,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const tiltItems = document.querySelectorAll(".card, .project");
   tiltItems.forEach((item) => {
     item.addEventListener("mousemove", (event) => {
+      if (isMobileCalmViewport()) return;
       const rect = item.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width - 0.5;
       const y = (event.clientY - rect.top) / rect.height - 0.5;
@@ -501,6 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.style.setProperty("--rx", `${-y * 4}deg`);
     });
     item.addEventListener("mouseleave", () => {
+      if (isMobileCalmViewport()) return;
       item.style.setProperty("--ry", "0deg");
       item.style.setProperty("--rx", "0deg");
     });
@@ -528,28 +746,41 @@ document.addEventListener("DOMContentLoaded", () => {
     const scrollY = window.scrollY;
     const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
     const progress = scrollY / maxScroll;
-    progressBar?.style.setProperty("transform", `scaleX(${progress})`);
+    progressBar?.style.setProperty("--scroll-progress", String(progress));
 
     const vh = window.innerHeight;
-    scrubText.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      const center = rect.top + rect.height / 2;
-      const distance = Math.abs(center - vh * 0.46);
-      const normalized = Math.max(0, 1 - distance / (vh * 0.9));
-      const smooth = normalized * normalized * (3 - 2 * normalized);
-      const y = (1 - smooth) * 14;
-      const opacity = 0.42 + smooth * 0.58;
-      el.style.transform = `translate3d(0, ${y}px, 0)`;
-      el.style.opacity = opacity.toFixed(3);
-    });
+    const calmMobile = isMobileCalmViewport();
+    if (calmMobile) {
+      scrubText.forEach((el) => {
+        el.style.removeProperty("transform");
+        el.style.removeProperty("opacity");
+      });
+      parallaxElements.forEach((el) => {
+        el.style.removeProperty("--parallax-y");
+        el.style.setProperty("--rx", "0deg");
+        el.style.setProperty("--ry", "0deg");
+      });
+    } else {
+      scrubText.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const center = rect.top + rect.height / 2;
+        const distance = Math.abs(center - vh * 0.46);
+        const normalized = Math.max(0, 1 - distance / (vh * 0.9));
+        const smooth = normalized * normalized * (3 - 2 * normalized);
+        const y = (1 - smooth) * 14;
+        const opacity = 0.42 + smooth * 0.58;
+        el.style.transform = `translate3d(0, ${y}px, 0)`;
+        el.style.opacity = opacity.toFixed(3);
+      });
 
-    parallaxElements.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      const depth = parseFloat(el.dataset.depth || "0.04");
-      const y = Math.max(-18, Math.min(18, -(mid - vh / 2) * depth));
-      el.style.setProperty("--parallax-y", `${y}px`);
-    });
+      parallaxElements.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        const depth = parseFloat(el.dataset.depth || "0.04");
+        const y = Math.max(-18, Math.min(18, -(mid - vh / 2) * depth));
+        el.style.setProperty("--parallax-y", `${y}px`);
+      });
+    }
 
     if (!prefersReducedMotion) {
       window.requestAnimationFrame(motionLoop);
@@ -678,17 +909,43 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     };
 
-    const hasMissingOrPlaceholderKey = () => {
-      try {
-        const script = Array.from(document.scripts).find((el) =>
-          el.src.includes("maps.googleapis.com/maps/api/js")
-        );
-        if (!script) return true;
-        const key = new URL(script.src).searchParams.get("key") || "";
-        return !key || key === "YOUR_GOOGLE_MAPS_API_KEY";
-      } catch (error) {
-        return true;
+    const MAPS_API_SRC =
+      "https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&v=beta&loading=async";
+
+    /*
+     * Touch phones: use embed only (no Maps JS / WebGL). Script is not loaded on phone (see below).
+     */
+    const prefersCoarsePointer = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    if (prefersCoarsePointer) {
+      renderIframeFallback();
+      return;
+    }
+
+    let mapsApiKey = "";
+    try {
+      mapsApiKey = new URL(MAPS_API_SRC).searchParams.get("key") || "";
+    } catch {
+      mapsApiKey = "";
+    }
+    const useMapsJsApi = Boolean(mapsApiKey && mapsApiKey !== "YOUR_GOOGLE_MAPS_API_KEY");
+    if (!useMapsJsApi) {
+      renderIframeFallback();
+      return;
+    }
+
+    const loadGoogleMapsScript = () => {
+      if (document.querySelector("script[data-byw-google-maps]")) {
+        return Promise.resolve();
       }
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = MAPS_API_SRC;
+        s.async = true;
+        s.dataset.bywGoogleMaps = "true";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Google Maps script failed to load"));
+        document.head.appendChild(s);
+      });
     };
 
     const waitForMapsApi = async (maxWaitMs = 9000) => {
@@ -700,7 +957,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return false;
     };
 
-    if (hasMissingOrPlaceholderKey()) {
+    try {
+      await loadGoogleMapsScript();
+    } catch {
       renderIframeFallback();
       return;
     }
@@ -715,7 +974,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const { Map } = await google.maps.importLibrary("maps");
       const dubaiCenter = { lat: 25.2048, lng: 55.2708 };
 
-      new Map(mapEl, {
+      const map = new Map(mapEl, {
         center: dubaiCenter,
         zoom: 10,
         mapTypeControl: false,
@@ -724,6 +983,21 @@ document.addEventListener("DOMContentLoaded", () => {
         gestureHandling: "cooperative",
         colorScheme: google.maps.ColorScheme.DARK,
       });
+
+      const triggerResize = () => {
+        if (window.google?.maps?.event) {
+          google.maps.event.trigger(map, "resize");
+        }
+      };
+      requestAnimationFrame(triggerResize);
+      window.setTimeout(triggerResize, 320);
+
+      if (typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(() => triggerResize());
+        ro.observe(mapEl);
+      } else {
+        window.addEventListener("resize", triggerResize, { passive: true });
+      }
 
       // If Google returns its auth/error overlay, swap to reliable iframe view.
       window.setTimeout(() => {
