@@ -1029,11 +1029,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const requiredFieldsMessage = "Please complete all required fields.";
   let inquiryToastTimer = null;
   const phoneInput = document.getElementById("phone-number");
+  /** True after the user focuses the national-number field (not the country selector). Used to avoid red “required” styling when only the country changes. */
+  let phoneDigitsFieldWasFocused = false;
   const submitButton = contactForm?.querySelector('button[type="submit"]');
   const isContactPhoneNarrowViewport = () =>
     window.matchMedia("(max-width: 980px)").matches;
 
-  const intlTelUtilsCdn = "https://cdn.jsdelivr.net/npm/intl-tel-input@25.4.4/build/js/utils.js";
+  const intlTelUtilsCdn = "https://cdn.jsdelivr.net/npm/intl-tel-input@27.0.0/dist/js/utils.js";
 
   const phoneInputInstance =
     phoneInput && window.intlTelInput
@@ -1045,14 +1047,19 @@ document.addEventListener("DOMContentLoaded", () => {
           loadUtils: () => import(intlTelUtilsCdn),
           autoPlaceholder: "aggressive",
           placeholderNumberType: "MOBILE",
+          // Visible field: intl-tel-input applies libphonenumber AsYouTypeFormatter via utils.formatNumberAsYouType(full, iso2).
           formatAsYouType: true,
+          // Blur / setNumber: national display from libphonenumber formatNumber(..., NATIONAL) for the selected region.
           formatOnDisplay: true,
           // Enforce max digit count for the selected country and block junk keys; works with formatAsYouType
-          // so spacing matches the national format (users type digits; spaces come from the formatter).
+          // so spacing matches national format from libphonenumber (updated with each intl-tel-input release).
           strictMode: true,
-          // Default is mobile-only validation; null allows landlines and other valid types worldwide.
-          validationNumberTypes: null,
-          // Mobile only: library defaults to fullscreen popup; our CSS hides `.iti__search-input`, which breaks that mode.
+          // Match placeholderNumberType ("MOBILE"): valid complete numbers must be mobiles for that country.
+          allowedNumberTypes: ["MOBILE"],
+          // Visible search UI is hidden in our CSS; disabling search avoids focus moving to a hidden field.
+          // Typing letters in the open dropdown still filters countries (library "hidden search" behaviour).
+          countrySearch: false,
+          // Mobile only: fullscreen popup is a poor fit for our inline dropdown layout.
           ...(isContactPhoneNarrowViewport() ? { useFullscreenPopup: false } : {}),
         })
       : null;
@@ -1082,8 +1089,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /**
-   * With countrySearch on, intl-tel-input always highlights the first list row on open.
-   * Re-align highlight + internal highlightedItem to the actually selected country and scroll it into view.
+   * With `countrySearch: false`, the dropdown does not auto-highlight the selected row on open.
+   * Align highlight and aria-activedescendant to the current country and scroll it into view.
    */
   const syncItiDropdownHighlightToSelection = () => {
     if (!phoneInputInstance || !phoneInput) return;
@@ -1091,7 +1098,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const itiWrap = phoneInput.closest(".iti");
     const listEl = itiWrap?.querySelector(".iti__country-list");
     const selectedCountryBtn = itiWrap?.querySelector(".iti__selected-country");
-    const searchInput = itiWrap?.querySelector(".iti__search-input");
     if (!iso2 || !listEl || !selectedCountryBtn) return;
 
     const target = listEl.querySelector(`.iti__country[data-country-code="${iso2}"]`);
@@ -1107,17 +1113,75 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const activeId = target.getAttribute("id") || "";
     selectedCountryBtn.setAttribute("aria-activedescendant", activeId);
-    if (searchInput) {
-      searchInput.setAttribute("aria-activedescendant", activeId);
-    }
-
-    try {
-      phoneInputInstance.highlightedItem = target;
-    } catch (_) {
-      /* ignore if runtime hides the field */
-    }
 
     target.scrollIntoView({ block: "nearest", behavior: "auto" });
+  };
+
+  /**
+   * Re-run intl-tel-input’s input handler so it applies libphonenumber’s as-you-type formatting for the
+   * currently selected region (utils.formatNumberAsYouType). Use after utils load or country change when
+   * the field already contains digits (e.g. user typed before utils finished loading).
+   */
+  const dispatchPhoneInputToApplyLibFormat = () => {
+    if (!phoneInput || !window.intlTelInput?.utils) return;
+    if (!String(phoneInput.value || "").trim()) return;
+    const ev =
+      typeof InputEvent !== "undefined"
+        ? new InputEvent("input", { bubbles: true })
+        : new Event("input", { bubbles: true });
+    phoneInput.dispatchEvent(ev);
+  };
+
+  /**
+   * Complete valid numbers: normalize visible national formatting via setNumber(E164) → lib formatNumber.
+   * Partial numbers: trigger as-you-type formatting only (no manual dial+digit concatenation for display).
+   */
+  const polishVisiblePhoneFromLib = () => {
+    if (!phoneInput || !phoneInputInstance || !window.intlTelInput?.utils) return;
+    const utils = window.intlTelInput.utils;
+    const trimmed = String(phoneInput.value || "").trim();
+    if (!trimmed) return;
+    if (phoneInputInstance.isValidNumber() === true) {
+      const e164 = phoneInputInstance.getNumber(utils.numberFormat.E164);
+      if (e164) phoneInputInstance.setNumber(e164);
+    } else {
+      dispatchPhoneInputToApplyLibFormat();
+    }
+  };
+
+  const refreshPhoneFieldErrorForPartial = () => {
+    if (!phoneInput || !phoneInputInstance) return;
+    const t = String(phoneInput.value || "").trim();
+    if (!t) {
+      // Empty: do not show field error here (e.g. on country change). Red only after the user leaves the number field (blur) or on submit.
+      setFieldErrorState(phoneInput, false);
+      clearRequiredMessageIfComplete();
+      return;
+    }
+    if (window.intlTelInput?.utils && phoneInputInstance.isValidNumber() === true) {
+      setFieldErrorState(phoneInput, false);
+      phoneInput.setCustomValidity("");
+    }
+    clearRequiredMessageIfComplete();
+  };
+
+  const validatePhoneBlurStrict = () => {
+    if (!phoneInput || !phoneInputInstance || !window.intlTelInput?.utils) return;
+    const t = String(phoneInput.value || "").trim();
+    if (!t) {
+      phoneInput.setCustomValidity("");
+      setFieldErrorState(phoneInput, phoneDigitsFieldWasFocused);
+      return;
+    }
+    if (phoneInputInstance.isValidNumber() !== true) {
+      phoneInput.setCustomValidity(
+        "Enter a complete mobile number in the format shown for this country."
+      );
+      setFieldErrorState(phoneInput, true);
+    } else {
+      phoneInput.setCustomValidity("");
+      setFieldErrorState(phoneInput, false);
+    }
   };
 
   if (phoneInputInstance && phoneInput) {
@@ -1127,10 +1191,35 @@ document.addEventListener("DOMContentLoaded", () => {
     phoneInputInstance.promise?.then?.(() => {
       updatePhoneInputOffset();
       pinUaeToTop();
+      dispatchPhoneInputToApplyLibFormat();
+      phoneInput.addEventListener("input", () => {
+        refreshPhoneFieldErrorForPartial();
+      });
     });
-    phoneInput.addEventListener("countrychange", updatePhoneInputOffset);
-    phoneInput.addEventListener("countrychange", pinUaeToTop);
-    phoneInput.addEventListener("focus", pinUaeToTop);
+    phoneInput.addEventListener("countrychange", () => {
+      updatePhoneInputOffset();
+      pinUaeToTop();
+      window.requestAnimationFrame(() => {
+        dispatchPhoneInputToApplyLibFormat();
+        refreshPhoneFieldErrorForPartial();
+      });
+      clearRequiredMessageIfComplete();
+    });
+    phoneInput.addEventListener("focus", () => {
+      phoneDigitsFieldWasFocused = true;
+      pinUaeToTop();
+      phoneInput.setCustomValidity("");
+      setFieldErrorState(phoneInput, false);
+    });
+    phoneInput.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        const itiRoot = phoneInput.closest(".iti");
+        const active = document.activeElement;
+        if (itiRoot && active && itiRoot.contains(active)) return;
+        polishVisiblePhoneFromLib();
+        validatePhoneBlurStrict();
+      }, 0);
+    });
     phoneInput
       .closest(".iti")
       ?.querySelector(".iti__selected-country")
@@ -1163,6 +1252,20 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     requiredFields.forEach((field) => {
+      if (field === phoneInput && phoneInputInstance) {
+        const value = String(field.value || "").trim();
+        let isValid = false;
+        if (!value) {
+          isValid = false;
+        } else if (window.intlTelInput?.utils) {
+          isValid = phoneInputInstance.isValidNumber() === true;
+        } else {
+          isValid = value.replace(/\D/g, "").length >= 6;
+        }
+        setFieldErrorState(field, !isValid);
+        if (!isValid) hasError = true;
+        return;
+      }
       const isCheckbox = field instanceof HTMLInputElement && field.type === "checkbox";
       const value = String(field.value || "").trim();
       const isValid = isCheckbox ? field.checked : Boolean(value);
@@ -1180,6 +1283,16 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     for (const field of requiredFields) {
+      if (field === phoneInput && phoneInputInstance) {
+        const value = String(field.value || "").trim();
+        if (!value) return false;
+        if (window.intlTelInput?.utils) {
+          if (phoneInputInstance.isValidNumber() !== true) return false;
+        } else if (value.replace(/\D/g, "").length < 6) {
+          return false;
+        }
+        continue;
+      }
       const isCheckbox = field instanceof HTMLInputElement && field.type === "checkbox";
       const value = String(field.value || "").trim();
       const isValid = isCheckbox ? field.checked : Boolean(value);
@@ -1239,6 +1352,7 @@ document.addEventListener("DOMContentLoaded", () => {
   contactForm
     ?.querySelectorAll("input[required], select[required], textarea[required]")
     .forEach((field) => {
+      if (field === phoneInput) return;
       const eventName = field instanceof HTMLSelectElement ? "change" : "input";
       field.addEventListener(eventName, () => {
         const isCheckbox = field instanceof HTMLInputElement && field.type === "checkbox";
@@ -1254,8 +1368,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     });
-
-  phoneInput?.addEventListener("countrychange", clearRequiredMessageIfComplete);
 
   const resolvePhoneForSubmit = async () => {
     if (!phoneInput) {
@@ -1275,6 +1387,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (phoneInputInstance.isValidNumber() !== true) {
         return { ok: false, reason: "invalid" };
       }
+      // E.164 from libphonenumber (parse + format), not a naive "+dialCode + raw digits" join.
       const e164 = phoneInputInstance.getNumber(utils.numberFormat.E164);
       return e164 ? { ok: true, value: e164 } : { ok: false, reason: "invalid" };
     }
@@ -1284,6 +1397,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!dialCode || nationalDigits.length < 6) {
       return { ok: false, reason: "invalid" };
     }
+    // Fallback only if utils failed to load (should be rare).
     return { ok: true, value: `+${dialCode}${nationalDigits}` };
   };
 
@@ -1316,7 +1430,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (phoneInput) setFieldErrorState(phoneInput, true);
       status.textContent =
         phoneResult.reason === "invalid"
-          ? "Please enter a valid phone number for the selected country."
+          ? "Enter a complete mobile number in the format shown for this country."
           : requiredFieldsMessage;
       status.className = "status error";
       return;
@@ -1388,6 +1502,9 @@ document.addEventListener("DOMContentLoaded", () => {
         status.className = "status";
         showInquiryToast();
         contactForm.reset();
+        phoneDigitsFieldWasFocused = false;
+        phoneInput?.setCustomValidity("");
+        if (phoneInput) setFieldErrorState(phoneInput, false);
         phoneInputInstance?.setCountry("ae");
         updatePhoneInputOffset();
         window.setTimeout(() => {

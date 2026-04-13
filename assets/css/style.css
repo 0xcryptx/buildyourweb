@@ -1320,12 +1320,15 @@ textarea {
 
 .iti {
   width: 100%;
+  min-width: 0;
   position: relative;
   z-index: 3;
 }
 
+/* Tabular figures keep spaced digit groups from looking uneven; min-width:0 avoids grid squeeze. */
 .iti__tel-input {
   width: 100%;
+  font-variant-numeric: tabular-nums;
 }
 
 .iti--separate-dial-code .iti__tel-input {
@@ -1376,6 +1379,8 @@ textarea {
   background: rgba(10, 16, 30, 0.97);
 }
 
+/* Kept for compatibility if country search is re-enabled; with countrySearch:false the nodes are absent. */
+.iti__search-input-wrapper,
 .iti__search-input {
   display: none;
 }
