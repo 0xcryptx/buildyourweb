@@ -1047,6 +1047,9 @@ document.addEventListener("DOMContentLoaded", () => {
           placeholderNumberType: "MOBILE",
           formatAsYouType: true,
           formatOnDisplay: true,
+          // Enforce max digit count for the selected country and block junk keys; works with formatAsYouType
+          // so spacing matches the national format (users type digits; spaces come from the formatter).
+          strictMode: true,
           // Default is mobile-only validation; null allows landlines and other valid types worldwide.
           validationNumberTypes: null,
           // Mobile only: library defaults to fullscreen popup; our CSS hides `.iti__search-input`, which breaks that mode.
