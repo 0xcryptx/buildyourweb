@@ -383,12 +383,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.prepend(fx);
   }
 
-  if (!document.querySelector(".scroll-progress")) {
-    const bar = document.createElement("div");
-    bar.className = "scroll-progress";
-    bar.setAttribute("aria-hidden", "true");
-    document.body.append(bar);
-  }
+  const ensureScrollProgressBar = () => {
+    let bar = document.querySelector(".scroll-progress");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.className = "scroll-progress";
+      bar.setAttribute("aria-hidden", "true");
+      document.body.append(bar);
+    }
+    if (!bar.querySelector(".scroll-progress-fill")) {
+      const fill = document.createElement("span");
+      fill.className = "scroll-progress-fill";
+      bar.append(fill);
+    }
+  };
+  ensureScrollProgressBar();
 
   const page = document.body.dataset.page;
   const menuToggle = document.querySelector(".menu-toggle");
@@ -745,8 +754,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const motionLoop = () => {
     const scrollY = window.scrollY;
     const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
-    const progress = scrollY / maxScroll;
-    progressBar?.style.setProperty("--scroll-progress", String(progress));
+    const progress = Math.min(1, Math.max(0, scrollY / maxScroll));
+    progressBar?.style.setProperty("--scroll-progress", progress.toFixed(4));
 
     const vh = window.innerHeight;
     const calmMobile = isMobileCalmViewport();

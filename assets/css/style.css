@@ -42,9 +42,12 @@ body {
     radial-gradient(circle at 50% 86%, rgba(139, 124, 255, 0.12), transparent 42%),
     linear-gradient(165deg, var(--bg-base), #0a1221 44%, var(--surface-deep) 100%);
   background-color: #070b14;
-  background-attachment: fixed;
+  /* Safari/macOS: background-attachment: fixed + overscroll up causes a bright blue
+     band at the top (fixed bg repaints wrong during rubber-band). Default scroll
+     attachment matches .fx-layer fixed aurora without triggering that bug. */
   overflow-x: hidden;
   isolation: isolate;
+  overscroll-behavior-y: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -401,17 +404,24 @@ body > *:not(.fx-layer):not(.scroll-progress):not(.modal-overlay):not(.mobile-na
   box-sizing: border-box;
   pointer-events: none;
   background: transparent;
+  overflow: hidden;
+  /* Stable fixed layer for Safari desktop (avoids repaint trails vs. descendants). */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
-.scroll-progress::after {
-  content: "";
+/* Real node + clip-path (no transform on the gradient): Safari/macOS often leaves
+   blue “shadow” smears when a pseudo or layer uses scaleX + gradient every frame. */
+.scroll-progress-fill {
   display: block;
   height: 100%;
   width: 100%;
-  transform-origin: left center;
-  transform: scaleX(var(--scroll-progress));
+  margin: 0;
+  padding: 0;
+  border: 0;
   background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
-  box-shadow: 0 0 14px rgba(77, 166, 255, 0.44);
+  clip-path: inset(0 calc((1 - var(--scroll-progress, 0)) * 100%) 0 0);
+  -webkit-clip-path: inset(0 calc((1 - var(--scroll-progress, 0)) * 100%) 0 0);
 }
 
 a {
