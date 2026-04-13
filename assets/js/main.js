@@ -1080,6 +1080,46 @@ document.addEventListener("DOMContentLoaded", () => {
       listEl.insertBefore(uaeEl, listEl.firstChild);
     }
   };
+
+  /**
+   * With countrySearch on, intl-tel-input always highlights the first list row on open.
+   * Re-align highlight + internal highlightedItem to the actually selected country and scroll it into view.
+   */
+  const syncItiDropdownHighlightToSelection = () => {
+    if (!phoneInputInstance || !phoneInput) return;
+    const iso2 = phoneInputInstance.getSelectedCountryData()?.iso2;
+    const itiWrap = phoneInput.closest(".iti");
+    const listEl = itiWrap?.querySelector(".iti__country-list");
+    const selectedCountryBtn = itiWrap?.querySelector(".iti__selected-country");
+    const searchInput = itiWrap?.querySelector(".iti__search-input");
+    if (!iso2 || !listEl || !selectedCountryBtn) return;
+
+    const target = listEl.querySelector(`.iti__country[data-country-code="${iso2}"]`);
+    if (!target) return;
+
+    listEl.querySelectorAll(".iti__country.iti__highlight").forEach((li) => {
+      li.classList.remove("iti__highlight");
+      li.setAttribute("aria-selected", "false");
+    });
+
+    target.classList.add("iti__highlight");
+    target.setAttribute("aria-selected", "true");
+
+    const activeId = target.getAttribute("id") || "";
+    selectedCountryBtn.setAttribute("aria-activedescendant", activeId);
+    if (searchInput) {
+      searchInput.setAttribute("aria-activedescendant", activeId);
+    }
+
+    try {
+      phoneInputInstance.highlightedItem = target;
+    } catch (_) {
+      /* ignore if runtime hides the field */
+    }
+
+    target.scrollIntoView({ block: "nearest", behavior: "auto" });
+  };
+
   if (phoneInputInstance && phoneInput) {
     phoneInputInstance.setCountry("ae");
     window.setTimeout(updatePhoneInputOffset, 0);
@@ -1096,6 +1136,12 @@ document.addEventListener("DOMContentLoaded", () => {
       ?.querySelector(".iti__selected-country")
       ?.addEventListener("click", () => window.setTimeout(pinUaeToTop, 0));
     window.addEventListener("resize", updatePhoneInputOffset);
+
+    phoneInput.addEventListener("open:countrydropdown", () => {
+      window.requestAnimationFrame(() => {
+        syncItiDropdownHighlightToSelection();
+      });
+    });
   }
 
   const setFieldErrorState = (field, hasError) => {
