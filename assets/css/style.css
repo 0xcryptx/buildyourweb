@@ -1667,7 +1667,7 @@ textarea {
 
   /*
    * Contact page only: maps API + intl-tel + inquiry overlay are unique to this route.
-   * viewport-fit=cover is set only on contact.html so env() applies; other pages stay unchanged.
+   * viewport-fit=cover is set only on contact/index.html so env() applies; other pages stay unchanged.
    */
   body[data-page="contact"] {
     padding-top: env(safe-area-inset-top, 0px);
