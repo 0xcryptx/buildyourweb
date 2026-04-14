@@ -5,6 +5,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const isMobileCalmViewport = () => window.matchMedia("(max-width: 980px)").matches;
 
+  const navBase = (() => {
+    const path = window.location.pathname.replace(/\/index\.html$/i, "");
+    const segments = path.split("/").filter(Boolean);
+    const last = segments[segments.length - 1] || "";
+    return ["services", "projects", "about", "contact"].includes(last) ? "../" : "./";
+  })();
+
   const escapeHtml = (value) =>
     String(value)
       .replace(/&/g, "&amp;")
@@ -445,11 +452,11 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     });
     const fallbackItems = [
-      { href: "index.html", pageLink: "home", text: "Home" },
-      { href: "services.html", pageLink: "services", text: "Services" },
-      { href: "projects.html", pageLink: "projects", text: "Projects" },
-      { href: "about.html", pageLink: "about", text: "About" },
-      { href: "contact.html", pageLink: "contact", text: "Contact" },
+      { href: `${navBase}`, pageLink: "home", text: "Home" },
+      { href: `${navBase}services/`, pageLink: "services", text: "Services" },
+      { href: `${navBase}projects/`, pageLink: "projects", text: "Projects" },
+      { href: `${navBase}about/`, pageLink: "about", text: "About" },
+      { href: `${navBase}contact/`, pageLink: "contact", text: "Contact" },
     ];
     const listItems = navItems.length ? navItems : fallbackItems;
     mobileList.innerHTML = listItems
@@ -589,7 +596,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    const projectsUrl = new URL("projects.html", window.location.href).toString();
+    const projectsUrl = new URL(`${navBase}projects/`, window.location.href).toString();
     let didSetCount = false;
 
     const trySetCount = (count) => {
