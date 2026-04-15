@@ -89,6 +89,27 @@ document.addEventListener("DOMContentLoaded", () => {
     let wheelSettleTimer = 0;
     let nextAllowedSwitchAt = 0;
 
+    const preloadedModalSrc = new Set();
+    const collectProjectImageSrcs = (projectEl) => {
+      const modalImages = (projectEl.dataset.modalImages || "")
+        .split("|")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const thumb = projectEl.querySelector(".project-mock-viewport img");
+      const fallback = thumb?.getAttribute("src")?.trim() || "";
+      const list = modalImages.length ? modalImages : fallback ? [fallback] : [];
+      return list.filter(Boolean);
+    };
+    const preloadModalImages = (projectEl) => {
+      collectProjectImageSrcs(projectEl).forEach((src) => {
+        if (preloadedModalSrc.has(src)) return;
+        preloadedModalSrc.add(src);
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+      });
+    };
+
     const viewportWidth = () => Math.max(1, carouselEl.clientWidth || mediaEl.clientWidth || 1);
     const wrapIndex = (idx) =>
       ((idx % Math.max(1, currentImages.length)) + Math.max(1, currentImages.length)) %
@@ -109,6 +130,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     };
 
+    const syncSlideFetchPriority = () => {
+      trackEl.querySelectorAll(".modal-image").forEach((img, i) => {
+        img.fetchPriority = i === displayIndex ? "high" : "low";
+      });
+    };
+
     const renderSlides = () => {
       const slides = [...currentImages];
       if (slides.length > 1) {
@@ -118,11 +145,14 @@ document.addEventListener("DOMContentLoaded", () => {
       trackEl.innerHTML = slides
         .map(
           (src) =>
-            `<div class="modal-slide"><img class="modal-image" src="${escapeHtml(src)}" alt="" /></div>`
+            `<div class="modal-slide"><img class="modal-image" src="${escapeHtml(
+              src
+            )}" alt="" decoding="async" /></div>`
         )
         .join("");
       dragDeltaX = 0;
       displayIndex = currentImages.length > 1 ? currentIndex + 1 : 0;
+      syncSlideFetchPriority();
       setTrackTransform(false);
     };
 
@@ -146,11 +176,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       setTrackTransform(animate);
       setActiveThumb();
+      syncSlideFetchPriority();
 
       if (animate && count > 1 && (displayIndex === 0 || displayIndex === count + 1)) {
         window.setTimeout(() => {
           displayIndex = currentIndex + 1;
           setTrackTransform(false);
+          syncSlideFetchPriority();
         }, transitionMs + 20);
       }
     };
@@ -221,6 +253,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .map((s) => s.trim())
         .filter(Boolean);
       const images = modalImages.length ? modalImages : [thumb?.getAttribute("src") || ""];
+      preloadModalImages(projectEl);
       currentImages = images;
       currentTitle = title;
       currentIndex = 0;
@@ -248,7 +281,9 @@ document.addEventListener("DOMContentLoaded", () => {
           button.type = "button";
           button.className = `modal-gallery-thumb${idx === 0 ? " active" : ""}`;
           button.setAttribute("aria-label", `View image ${idx + 1} for ${title}`);
-          button.innerHTML = `<img src="${escapeHtml(src)}" alt="" />`;
+          button.innerHTML = `<img src="${escapeHtml(
+            src
+          )}" alt="" loading="lazy" decoding="async" fetchpriority="low" />`;
           button.addEventListener("click", () => {
             goToIndex(idx, true);
           });
@@ -285,6 +320,8 @@ document.addEventListener("DOMContentLoaded", () => {
         hint.textContent = "View Project";
         body.appendChild(hint);
       }
+      project.addEventListener("pointerenter", () => preloadModalImages(project));
+      project.addEventListener("focusin", () => preloadModalImages(project));
       project.addEventListener("click", () => openModal(project));
       project.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
