@@ -1687,6 +1687,13 @@ textarea {
     pointer-events: none;
   }
 
+  /* Push progress bar below the Dynamic Island / notch safe area on the contact
+     page (the only route with viewport-fit=cover). Without this the 3 px bar
+     sits at top:0 which is physically behind the sensor housing and invisible. */
+  body[data-page="contact"] .scroll-progress {
+    top: env(safe-area-inset-top, 0px);
+  }
+
   /* No top bar: header is only a centered logo at the start of the page */
   .site-header {
     position: static;
