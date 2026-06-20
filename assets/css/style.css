@@ -2588,6 +2588,21 @@ textarea {
 }
 
 /* ============================================================
+   SERVICE CARDS — WhatsApp CTA button
+   ============================================================ */
+
+[data-page="services"] .cards .card {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-page="services"] .cards .card .card-cta {
+  margin-top: auto;
+  padding-top: 1.2rem;
+  align-self: flex-start;
+}
+
+/* ============================================================
    CTA WITH MULTIPLE ACTIONS
    ============================================================ */
 
