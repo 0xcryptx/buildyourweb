@@ -148,6 +148,7 @@ body.modal-open {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   touch-action: pan-y;
   cursor: grab;
+  flex-shrink: 0;
 }
 
 .modal-media.is-dragging {
@@ -184,7 +185,7 @@ body.modal-open {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: fill;
+  object-fit: contain;
   object-position: center;
   user-select: none;
   -webkit-user-drag: none;
@@ -192,7 +193,7 @@ body.modal-open {
 }
 
 .modal-media .project-mock-viewport img.modal-image {
-  object-fit: fill;
+  object-fit: contain;
   object-position: center;
 }
 
