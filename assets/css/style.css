@@ -2485,6 +2485,44 @@ textarea {
   font-size: 1.15rem;
 }
 
+.pricing-timeline {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.pricing-card--compact {
+  padding: 1.1rem 1.2rem;
+  gap: 0.35rem;
+}
+
+.pricing-card--compact .btn-sm {
+  margin-top: 0.9rem;
+}
+
+.pricing-card--compact .btn-sm:hover {
+  transform: translate3d(var(--btn-x, 0), var(--btn-y, 0), 0);
+  border-color: rgba(110, 231, 255, 0.22);
+  box-shadow:
+    0 6px 14px rgba(4, 10, 26, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.aed {
+  display: inline-block;
+  width: 0.72em;
+  aspect-ratio: 1000 / 870;
+  background-color: currentColor;
+  -webkit-mask: url("../images/aed.svg") no-repeat center / contain;
+  mask: url("../images/aed.svg") no-repeat center / contain;
+  vertical-align: -0.05em;
+  margin-right: 0.12em;
+}
+
+.pricing-cta {
+  margin-top: 2.4rem;
+}
+
 .pricing-note {
   text-align: center;
   color: var(--text-muted);
@@ -2633,6 +2671,12 @@ textarea {
   font-size: 0.9rem;
 }
 
+[data-page="services"] .cards .card .pricing-timeline {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0 0 0.3rem;
+}
+
 /* ============================================================
    CONTACT PAGE — WhatsApp link in description
    ============================================================ */
@@ -2644,15 +2688,22 @@ textarea {
 }
 
 /* ============================================================
-   HOME PAGE — pricing section cards: 3 columns on desktop,
-   stack to single column on mobile
+   HOME PAGE — pricing section cards: 4 columns on desktop,
+   2 columns on tablet, stack to single column on mobile
    ============================================================ */
 
 .pricing-preview-section .cards {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 980px) {
+  .pricing-preview-section .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
   .pricing-preview-section .cards {
     grid-template-columns: 1fr;
     max-width: 480px;
