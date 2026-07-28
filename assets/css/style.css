@@ -2705,9 +2705,36 @@ textarea {
 
 @media (max-width: 620px) {
   .pricing-preview-section .cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
     max-width: 480px;
     margin: 0 auto;
+  }
+
+  .pricing-preview-section .pricing-card--compact {
+    padding: 0.9rem 0.8rem;
+  }
+
+  .pricing-preview-section .pricing-tag {
+    font-size: 0.6rem;
+    padding: 0.16rem 0.5rem;
+  }
+
+  .pricing-preview-section .pricing-from {
+    font-size: 0.85rem;
+  }
+
+  .pricing-preview-section .pricing-from strong {
+    font-size: 0.98rem;
+  }
+
+  .pricing-preview-section .pricing-timeline {
+    font-size: 0.72rem;
+  }
+
+  .pricing-preview-section .pricing-card--compact .btn-sm {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.72rem;
   }
 
   .faq-question {
