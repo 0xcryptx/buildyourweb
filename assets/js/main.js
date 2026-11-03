@@ -1,5 +1,76 @@
+document.documentElement.classList.add("js");
+
 document.addEventListener("DOMContentLoaded", () => {
-  // FAQ accordion
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const navBase = (() => {
+    const path = window.location.pathname.replace(/\/index\.html$/i, "");
+    const segments = path.split("/").filter(Boolean);
+    const last = (segments[segments.length - 1] || "").toLowerCase();
+    return ["services", "projects", "about", "contact"].includes(last) ? "../" : "./";
+  })();
+
+  /* ---------- Header: scrolled state ---------- */
+  const header = document.querySelector(".site-header");
+  const syncHeader = () => header?.classList.toggle("is-scrolled", window.scrollY > 8);
+  syncHeader();
+  window.addEventListener("scroll", syncHeader, { passive: true });
+
+  /* ---------- Active nav link ---------- */
+  const page = document.body.dataset.page;
+  document.querySelectorAll("[data-page-link]").forEach((link) => {
+    const isActive = link.dataset.pageLink === page;
+    link.classList.toggle("active", isActive);
+    if (isActive) link.setAttribute("aria-current", "page");
+  });
+
+  /* ---------- Mobile menu ---------- */
+  const menuToggle = document.querySelector(".menu-toggle");
+  const setMenu = (open) => {
+    if (!menuToggle) return;
+    menuToggle.setAttribute("aria-expanded", String(open));
+    menuToggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    document.body.classList.toggle("nav-open", open);
+  };
+  menuToggle?.addEventListener("click", () => {
+    setMenu(menuToggle.getAttribute("aria-expanded") !== "true");
+  });
+  document.querySelectorAll(".nav-links a").forEach((a) => a.addEventListener("click", () => setMenu(false)));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.body.classList.contains("nav-open")) {
+      setMenu(false);
+      menuToggle?.focus();
+    }
+  });
+  window.matchMedia("(min-width: 861px)").addEventListener("change", (e) => {
+    if (e.matches) setMenu(false);
+  });
+
+  /* ---------- Footer year ---------- */
+  document.querySelectorAll("[data-year]").forEach((el) => {
+    el.textContent = String(new Date().getFullYear());
+  });
+
+  /* ---------- Reveal on scroll ---------- */
+  const reveals = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window && !prefersReducedMotion) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+    );
+    reveals.forEach((el) => io.observe(el));
+  } else {
+    reveals.forEach((el) => el.classList.add("is-visible"));
+  }
+
+  /* ---------- FAQ accordion ---------- */
   document.querySelectorAll(".faq-question").forEach((btn) => {
     btn.addEventListener("click", () => {
       const item = btn.closest(".faq-item");
@@ -15,953 +86,215 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  const prefersReducedMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)"
-  ).matches;
-
-  const isMobileCalmViewport = () => window.matchMedia("(max-width: 980px)").matches;
-
-  const navBase = (() => {
-    const path = window.location.pathname.replace(/\/index\.html$/i, "");
-    const segments = path.split("/").filter(Boolean);
-    const last = segments[segments.length - 1] || "";
-    return ["services", "projects", "about", "contact"].includes(last) ? "../" : "./";
-  })();
-
-  const escapeHtml = (value) =>
-    String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-
+  /* ---------- Project modal ---------- */
   const initProjectModals = () => {
     const projects = Array.from(document.querySelectorAll(".project[data-modal-title]"));
     if (!projects.length) return;
 
-    if (!document.querySelector(".modal-overlay")) {
-      const overlay = document.createElement("div");
-      overlay.className = "modal-overlay";
-      overlay.setAttribute("hidden", "");
-      overlay.innerHTML = `
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc">
-          <button class="modal-close" type="button" aria-label="Close modal">Close</button>
-          <div class="modal-media project-media">
-            <div class="project-mock">
-              <div class="project-mock-chrome">
-                <span class="project-mock-dot project-mock-dot--r"></span>
-                <span class="project-mock-dot project-mock-dot--y"></span>
-                <span class="project-mock-dot project-mock-dot--g"></span>
-                <span class="project-mock-url"></span>
-              </div>
-              <div class="project-mock-viewport">
-                <div class="modal-carousel" id="modalCarousel">
-                  <div class="modal-track" id="modalTrack"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-gallery" id="modalGallery" hidden></div>
-          <div class="modal-body">
-            <p class="modal-kicker" id="modalType"></p>
-            <h3 class="modal-title">
-              <a class="modal-title-link" id="modalTitleLink" href="#" target="_blank" rel="noopener noreferrer"></a>
-            </h3>
-            <p class="modal-visit-hint" id="modalVisitHint" hidden>Visit website ↗</p>
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.hidden = true;
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="modal-close" type="button" aria-label="Close project details">✕</button>
+        <div class="modal-media">
+          <div class="modal-track" id="modalTrack" tabindex="0" aria-label="Project screenshots"></div>
+          <button class="modal-nav modal-nav--prev" type="button" aria-label="Previous screenshot">←</button>
+          <button class="modal-nav modal-nav--next" type="button" aria-label="Next screenshot">→</button>
+          <span class="modal-count" id="modalCount"></span>
+        </div>
+        <div class="modal-body">
+          <div>
+            <span class="tag" id="modalType"></span>
+            <h3 id="modalTitle"><a class="modal-title-link" id="modalTitleLink" href="#" target="_blank" rel="noopener noreferrer"><span id="modalTitleText"></span><span class="modal-title-arrow" aria-hidden="true">↗</span></a></h3>
+            <p class="modal-visit-hint" id="modalVisitHint"><span id="modalHintVerb">Tap</span> the name to visit the website</p>
             <p class="modal-desc" id="modalDesc"></p>
+          </div>
+          <div class="modal-side">
+            <h4>What's on the site</h4>
             <ul class="modal-list" id="modalList"></ul>
+            <a class="btn btn-primary" id="modalVisit" href="#" target="_blank" rel="noopener noreferrer">Visit live site ↗</a>
           </div>
         </div>
-      `;
-      document.body.appendChild(overlay);
-    }
+      </div>`;
+    document.body.appendChild(overlay);
 
-    const overlay = document.querySelector(".modal-overlay");
-    const dialog = overlay?.querySelector(".modal");
-    const closeBtn = overlay?.querySelector(".modal-close");
-    const titleLinkEl = overlay?.querySelector("#modalTitleLink");
-    const visitHintEl = overlay?.querySelector("#modalVisitHint");
-    const typeEl = overlay?.querySelector("#modalType");
-    const descEl = overlay?.querySelector("#modalDesc");
-    const listEl = overlay?.querySelector("#modalList");
-    const carouselEl = overlay?.querySelector("#modalCarousel");
-    const trackEl = overlay?.querySelector("#modalTrack");
-    const galleryEl = overlay?.querySelector("#modalGallery");
-    const mediaEl = overlay?.querySelector(".modal-media");
-    if (!overlay || !dialog || !closeBtn || !titleLinkEl || !visitHintEl || !typeEl || !descEl || !listEl || !carouselEl || !trackEl || !galleryEl || !mediaEl) return;
-
+    const $ = (sel) => overlay.querySelector(sel);
+    const track = $("#modalTrack");
+    const prev = $(".modal-nav--prev");
+    const next = $(".modal-nav--next");
+    const count = $("#modalCount");
     let lastFocus = null;
-    let currentImages = [];
-    let currentTitle = "";
-    let currentIndex = 0;
-    let displayIndex = 0;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let dragDeltaX = 0;
-    let isDragging = false;
-    let dragAxis = "";
-    let activePointerId = null;
-    let wheelSettleTimer = 0;
-    let nextAllowedSwitchAt = 0;
+    let total = 0;
 
-    const preloadedModalSrc = new Set();
-    const collectProjectImageSrcs = (projectEl) => {
-      const modalImages = (projectEl.dataset.modalImages || "")
-        .split("|")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const thumb = projectEl.querySelector(".project-mock-viewport img");
-      const fallback = thumb?.getAttribute("src")?.trim() || "";
-      const list = modalImages.length ? modalImages : fallback ? [fallback] : [];
-      return list.filter(Boolean);
+    const currentIndex = () => Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    const syncNav = () => {
+      const i = currentIndex();
+      count.textContent = total > 1 ? `${i + 1} / ${total}` : "";
+      prev.hidden = total < 2;
+      next.hidden = total < 2;
     };
-    const preloadModalImages = (projectEl) => {
-      collectProjectImageSrcs(projectEl).forEach((src) => {
-        if (preloadedModalSrc.has(src)) return;
-        preloadedModalSrc.add(src);
-        const img = new Image();
-        img.decoding = "async";
+    const go = (delta) => {
+      const target = (currentIndex() + delta + total) % total;
+      track.scrollTo({ left: target * track.clientWidth, behavior: prefersReducedMotion ? "auto" : "smooth" });
+    };
+
+    const open = (el) => {
+      lastFocus = document.activeElement;
+      const d = el.dataset;
+      const images = (d.modalImages || "").split("|").map((s) => s.trim()).filter(Boolean);
+      total = images.length;
+      track.innerHTML = "";
+      images.forEach((src, i) => {
+        const img = document.createElement("img");
         img.src = src;
+        img.alt = `${d.modalTitle} screenshot ${i + 1}`;
+        img.decoding = "async";
+        track.appendChild(img);
       });
-    };
-
-    const viewportWidth = () => Math.max(1, carouselEl.clientWidth || mediaEl.clientWidth || 1);
-    const wrapIndex = (idx) =>
-      ((idx % Math.max(1, currentImages.length)) + Math.max(1, currentImages.length)) %
-      Math.max(1, currentImages.length);
-    const transitionMs = 320;
-
-    const setTrackTransform = (animate) => {
-      const width = viewportWidth();
-      const base = -displayIndex * width + dragDeltaX;
-      trackEl.style.transition = animate ? `transform ${transitionMs}ms cubic-bezier(0.22, 1, 0.36, 1)` : "none";
-      trackEl.style.transform = `translate3d(${base}px, 0, 0)`;
-    };
-
-    const setActiveThumb = () => {
-      const thumbs = galleryEl.querySelectorAll(".modal-gallery-thumb");
-      thumbs.forEach((thumb, idx) => {
-        thumb.classList.toggle("active", idx === currentIndex);
+      track.scrollLeft = 0;
+      $("#modalType").textContent = d.modalType || "";
+      $("#modalTitleText").textContent = d.modalTitle || "";
+      const titleLink = $("#modalTitleLink");
+      const hint = $("#modalVisitHint");
+      if (d.modalUrl) {
+        titleLink.href = d.modalUrl;
+        titleLink.removeAttribute("aria-disabled");
+        titleLink.setAttribute("aria-label", `${d.modalTitle} — visit the live website (opens in a new tab)`);
+        $("#modalHintVerb").textContent = window.matchMedia("(hover: hover)").matches ? "Click" : "Tap";
+        hint.hidden = false;
+      } else {
+        titleLink.removeAttribute("href");
+        titleLink.setAttribute("aria-disabled", "true");
+        hint.hidden = true;
+      }
+      $("#modalDesc").textContent = d.modalDescription || "";
+      const list = $("#modalList");
+      list.innerHTML = "";
+      (d.modalPoints || "").split("|").filter(Boolean).forEach((point) => {
+        const li = document.createElement("li");
+        li.textContent = point.trim();
+        list.appendChild(li);
       });
-    };
+      const visit = $("#modalVisit");
+      visit.hidden = !d.modalUrl;
+      if (d.modalUrl) visit.href = d.modalUrl;
+      syncNav();
 
-    const syncSlideFetchPriority = () => {
-      trackEl.querySelectorAll(".modal-image").forEach((img, i) => {
-        img.fetchPriority = i === displayIndex ? "high" : "low";
-      });
-    };
-
-    const renderSlides = () => {
-      const slides = [...currentImages];
-      if (slides.length > 1) {
-        slides.unshift(currentImages[currentImages.length - 1]);
-        slides.push(currentImages[0]);
-      }
-      trackEl.innerHTML = slides
-        .map(
-          (src) =>
-            `<div class="modal-slide"><img class="modal-image" src="${escapeHtml(
-              src
-            )}" alt="" decoding="async" /></div>`
-        )
-        .join("");
-      dragDeltaX = 0;
-      displayIndex = currentImages.length > 1 ? currentIndex + 1 : 0;
-      syncSlideFetchPriority();
-      setTrackTransform(false);
-    };
-
-    const goToIndex = (nextIndex, animate = true) => {
-      if (!currentImages.length) return;
-      const count = currentImages.length;
-      const prevIndex = currentIndex;
-      const nextWrapped = wrapIndex(nextIndex);
-      currentIndex = nextWrapped;
-      dragDeltaX = 0;
-      if (count > 1) {
-        if (prevIndex === count - 1 && nextWrapped === 0) {
-          displayIndex = count + 1;
-        } else if (prevIndex === 0 && nextWrapped === count - 1) {
-          displayIndex = 0;
-        } else {
-          displayIndex = nextWrapped + 1;
-        }
-      } else {
-        displayIndex = 0;
-      }
-      setTrackTransform(animate);
-      setActiveThumb();
-      syncSlideFetchPriority();
-
-      if (animate && count > 1 && (displayIndex === 0 || displayIndex === count + 1)) {
-        window.setTimeout(() => {
-          displayIndex = currentIndex + 1;
-          setTrackTransform(false);
-          syncSlideFetchPriority();
-        }, transitionMs + 20);
-      }
-    };
-
-    const shiftImage = (delta) => {
-      if (currentImages.length < 2) return;
-      const now = Date.now();
-      if (now < nextAllowedSwitchAt) return;
-      nextAllowedSwitchAt = now + 180;
-      goToIndex(currentIndex + delta, true);
-    };
-
-    const startDrag = (x, y) => {
-      if (currentImages.length < 2) return;
-      isDragging = true;
-      dragAxis = "";
-      dragStartX = x;
-      dragStartY = y;
-      dragDeltaX = 0;
-      trackEl.style.transition = "none";
-      mediaEl.classList.add("is-dragging");
-    };
-
-    const moveDrag = (x, y) => {
-      if (!isDragging || currentImages.length < 2) return;
-      const dx = x - dragStartX;
-      const dy = y - dragStartY;
-      if (!dragAxis) {
-        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-        dragAxis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
-      }
-      if (dragAxis !== "x") return;
-      dragDeltaX = dx;
-      setTrackTransform(false);
-    };
-
-    const endDrag = () => {
-      if (!isDragging) return;
-      isDragging = false;
-      dragAxis = "";
-      mediaEl.classList.remove("is-dragging");
-      if (currentImages.length < 2) return;
-      const threshold = viewportWidth() * 0.18;
-      if (dragDeltaX <= -threshold) {
-        goToIndex(currentIndex + 1, true);
-      } else if (dragDeltaX >= threshold) {
-        goToIndex(currentIndex - 1, true);
-      } else {
-        goToIndex(currentIndex, true);
-      }
-    };
-
-    const openModal = (projectEl) => {
-      lastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-      const title = projectEl.dataset.modalTitle || "";
-      const type = projectEl.dataset.modalType || "";
-      const url = (projectEl.dataset.modalUrl || "").trim();
-      const description = projectEl.dataset.modalDescription || "";
-      const pointsRaw = projectEl.dataset.modalPoints || "";
-      const points = pointsRaw
-        .split("|")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const thumb = projectEl.querySelector(".project-mock-viewport img");
-      const modalImages = (projectEl.dataset.modalImages || "")
-        .split("|")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const images = modalImages.length ? modalImages : [thumb?.getAttribute("src") || ""];
-      preloadModalImages(projectEl);
-      currentImages = images;
-      currentTitle = title;
-      currentIndex = 0;
-
-      typeEl.textContent = type;
-      titleLinkEl.textContent = title;
-      titleLinkEl.href = url || "#";
-      titleLinkEl.classList.toggle("is-disabled", !url);
-      titleLinkEl.setAttribute("aria-disabled", String(!url));
-      if (url) {
-        visitHintEl.hidden = false;
-        visitHintEl.textContent = "Website link ↑";
-      } else {
-        visitHintEl.hidden = true;
-      }
-      descEl.textContent = description;
-      listEl.innerHTML = points.map((p) => `<li>${escapeHtml(p)}</li>`).join("");
-      renderSlides();
-      galleryEl.innerHTML = "";
-
-      if (currentImages.length > 1) {
-        galleryEl.hidden = false;
-        currentImages.forEach((src, idx) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = `modal-gallery-thumb${idx === 0 ? " active" : ""}`;
-          button.setAttribute("aria-label", `View image ${idx + 1} for ${title}`);
-          button.innerHTML = `<img src="${escapeHtml(
-            src
-          )}" alt="" loading="lazy" decoding="async" fetchpriority="low" />`;
-          button.addEventListener("click", () => {
-            goToIndex(idx, true);
-          });
-          galleryEl.appendChild(button);
-        });
-      } else {
-        galleryEl.hidden = true;
-      }
-
-      overlay.removeAttribute("hidden");
-      window.requestAnimationFrame(() => {
-        overlay.classList.add("is-open");
-        setTrackTransform(true);
-      });
+      overlay.hidden = false;
       document.body.classList.add("modal-open");
-      closeBtn.focus();
+      requestAnimationFrame(() => overlay.classList.add("is-open"));
+      $(".modal-close").focus();
     };
 
-    const closeModal = () => {
-      if (overlay.hasAttribute("hidden")) return;
+    const close = () => {
       overlay.classList.remove("is-open");
-      window.setTimeout(() => {
-        overlay.setAttribute("hidden", "");
-      }, 240);
       document.body.classList.remove("modal-open");
-      if (lastFocus) lastFocus.focus();
+      window.setTimeout(() => {
+        overlay.hidden = true;
+      }, prefersReducedMotion ? 0 : 250);
+      lastFocus?.focus?.();
     };
 
-    projects.forEach((project) => {
-      const body = project.querySelector(".project-body");
-      if (body && !body.querySelector(".project-hint")) {
-        const hint = document.createElement("p");
-        hint.className = "project-hint";
-        hint.textContent = "View Project";
-        body.appendChild(hint);
-      }
-      project.addEventListener("pointerenter", () => preloadModalImages(project));
-      project.addEventListener("focusin", () => preloadModalImages(project));
-      project.addEventListener("click", () => openModal(project));
-      project.addEventListener("keydown", (e) => {
+    projects.forEach((el) => {
+      el.addEventListener("click", (e) => {
+        if (e.target.closest("a")) return;
+        open(el);
+      });
+      el.addEventListener("keydown", (e) => {
+        if (e.target !== el) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openModal(project);
+          open(el);
         }
       });
     });
 
-    closeBtn.addEventListener("click", closeModal);
+    $(".modal-close").addEventListener("click", close);
+    prev.addEventListener("click", () => go(-1));
+    next.addEventListener("click", () => go(1));
+    track.addEventListener("scroll", () => window.requestAnimationFrame(syncNav), { passive: true });
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) closeModal();
+      if (e.target === overlay) close();
     });
-    mediaEl.addEventListener("touchstart", (e) => {
-      if (currentImages.length < 2 || overlay.hasAttribute("hidden")) return;
-      const touch = e.changedTouches[0];
-      startDrag(touch.clientX, touch.clientY);
-    });
-    mediaEl.addEventListener("touchmove", (e) => {
-      if (!isDragging || currentImages.length < 2) return;
-      const touch = e.changedTouches[0];
-      moveDrag(touch.clientX, touch.clientY);
-      e.preventDefault();
-    });
-    mediaEl.addEventListener("touchcancel", () => {
-      endDrag();
-    });
-    mediaEl.addEventListener("touchend", (e) => {
-      if (currentImages.length < 2 || overlay.hasAttribute("hidden")) return;
-      const touch = e.changedTouches[0];
-      moveDrag(touch.clientX, touch.clientY);
-      endDrag();
-    });
-    mediaEl.addEventListener("pointerdown", (e) => {
-      if (currentImages.length < 2 || e.pointerType === "touch" || overlay.hasAttribute("hidden")) return;
-      activePointerId = e.pointerId;
-      mediaEl.setPointerCapture(e.pointerId);
-      startDrag(e.clientX, e.clientY);
-    });
-    mediaEl.addEventListener("pointermove", (e) => {
-      if (!isDragging || currentImages.length < 2 || e.pointerType === "touch") return;
-      if (activePointerId !== null && e.pointerId !== activePointerId) return;
-      moveDrag(e.clientX, e.clientY);
-    });
-    mediaEl.addEventListener("pointerup", (e) => {
-      if (currentImages.length < 2 || e.pointerType === "touch") return;
-      if (activePointerId !== null && e.pointerId !== activePointerId) return;
-      moveDrag(e.clientX, e.clientY);
-      endDrag();
-      if (activePointerId !== null) {
-        mediaEl.releasePointerCapture(activePointerId);
-      }
-      activePointerId = null;
-    });
-    mediaEl.addEventListener("pointercancel", () => {
-      endDrag();
-      activePointerId = null;
-    });
-    mediaEl.addEventListener(
-      "wheel",
-      (e) => {
-        if (overlay.hasAttribute("hidden") || currentImages.length < 2) return;
-        const dominantHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
-        if (!dominantHorizontal || Math.abs(e.deltaX) < 3) return;
-        e.preventDefault();
-        dragDeltaX = Math.max(
-          -viewportWidth() * 0.6,
-          Math.min(viewportWidth() * 0.6, dragDeltaX - e.deltaX)
-        );
-        setTrackTransform(false);
-        window.clearTimeout(wheelSettleTimer);
-        wheelSettleTimer = window.setTimeout(() => {
-          const threshold = viewportWidth() * 0.18;
-          if (dragDeltaX <= -threshold) {
-            goToIndex(currentIndex + 1, true);
-          } else if (dragDeltaX >= threshold) {
-            goToIndex(currentIndex - 1, true);
-          } else {
-            goToIndex(currentIndex, true);
-          }
-        }, 90);
-      },
-      { passive: false }
-    );
     document.addEventListener("keydown", (e) => {
-      if (overlay.hasAttribute("hidden")) return;
-      if (e.key === "Escape") closeModal();
-      if (e.key === "ArrowRight") shiftImage(1);
-      if (e.key === "ArrowLeft") shiftImage(-1);
-    });
-    window.addEventListener("resize", () => {
-      if (overlay.hasAttribute("hidden")) return;
-      setTrackTransform(false);
-    });
-  };
-
-  if (!document.querySelector(".fx-layer")) {
-    const fx = document.createElement("div");
-    fx.className = "fx-layer";
-    fx.setAttribute("aria-hidden", "true");
-    fx.innerHTML =
-      '<div class="aurora-bg"></div><div class="grain-bg"></div><div class="vignette-bg"></div>';
-    document.body.prepend(fx);
-  }
-
-  const ensureScrollProgressBar = () => {
-    let bar = document.querySelector(".scroll-progress");
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.className = "scroll-progress";
-      bar.setAttribute("aria-hidden", "true");
-      document.body.append(bar);
-    }
-    if (!bar.querySelector(".scroll-progress-fill")) {
-      const fill = document.createElement("span");
-      fill.className = "scroll-progress-fill";
-      bar.append(fill);
-    }
-  };
-  ensureScrollProgressBar();
-
-  const page = document.body.dataset.page;
-  const menuToggle = document.querySelector(".menu-toggle");
-  const navList = document.querySelector(".nav-links");
-  const isMobileNavViewport = () => window.matchMedia("(max-width: 980px)").matches;
-  let mobileOverlay = null;
-  let mobileDrawer = null;
-  let mobilePanel = null;
-  let mobileTab = null;
-  let navTrigger = menuToggle;
-
-  const syncMobileTab = (open) => {
-    if (!mobileTab) return;
-    mobileTab.textContent = open ? "\u203a" : "\u2261";
-    mobileTab.setAttribute("aria-label", open ? "Back, close menu" : "Open menu");
-  };
-
-  if (navList) {
-    mobileOverlay = document.createElement("div");
-    mobileOverlay.className = "mobile-nav-overlay";
-    mobileOverlay.setAttribute("aria-hidden", "true");
-
-    mobileDrawer = document.createElement("div");
-    mobileDrawer.className = "mobile-nav-drawer";
-
-    mobileTab = document.createElement("button");
-    mobileTab.type = "button";
-    mobileTab.className = "mobile-nav-tab";
-    mobileTab.setAttribute("aria-controls", "mobile-site-nav");
-    mobileTab.setAttribute("aria-expanded", "false");
-    mobileTab.setAttribute("aria-label", "Open menu");
-    mobileTab.textContent = "\u2261";
-
-    mobilePanel = document.createElement("div");
-    mobilePanel.className = "mobile-nav-panel";
-
-    const mobileList = document.createElement("ul");
-    mobileList.className = "mobile-nav-list";
-    mobileList.id = "mobile-site-nav";
-    const navItems = Array.from(navList.querySelectorAll("a[data-page-link]")).map((anchor) => {
-      return {
-        href: anchor.getAttribute("href") || "#",
-        pageLink: anchor.getAttribute("data-page-link") || "",
-        text: (anchor.textContent || "").trim(),
-      };
-    });
-    const fallbackItems = [
-      { href: `${navBase}`, pageLink: "home", text: "Home" },
-      { href: `${navBase}services/`, pageLink: "services", text: "Services" },
-      { href: `${navBase}projects/`, pageLink: "projects", text: "Projects" },
-      { href: `${navBase}about/`, pageLink: "about", text: "About" },
-      { href: `${navBase}contact/`, pageLink: "contact", text: "Contact" },
-    ];
-    const listItems = navItems.length ? navItems : fallbackItems;
-    mobileList.innerHTML = listItems
-      .map(
-        (item) =>
-          `<li><a href="${item.href}" data-page-link="${item.pageLink}">${escapeHtml(item.text)}</a></li>`
-      )
-      .join("");
-
-    mobilePanel.appendChild(mobileList);
-    mobileDrawer.appendChild(mobileTab);
-    mobileDrawer.appendChild(mobilePanel);
-    document.body.appendChild(mobileOverlay);
-    document.body.appendChild(mobileDrawer);
-    navTrigger = mobileTab;
-
-    const positionMobileDrawer = () => {
-      if (!mobileDrawer || !isMobileNavViewport()) return;
-      const vv = window.visualViewport;
-      const topOffset = vv ? vv.offsetTop : 0;
-      mobileDrawer.style.top = `${Math.round(topOffset + 96)}px`;
-    };
-    positionMobileDrawer();
-    window.addEventListener("scroll", positionMobileDrawer, { passive: true });
-    window.addEventListener("resize", positionMobileDrawer);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("scroll", positionMobileDrawer);
-      window.visualViewport.addEventListener("resize", positionMobileDrawer);
-    }
-
-    if (menuToggle) {
-      menuToggle.setAttribute("aria-hidden", "true");
-      menuToggle.setAttribute("tabindex", "-1");
-    }
-  }
-
-  const highlightActiveNavLinks = () => {
-    document.querySelectorAll("[data-page-link]").forEach((link) => {
-      link.classList.toggle("active", link.dataset.pageLink === page);
-    });
-  };
-
-  const closeMobileNav = () => {
-    navTrigger?.setAttribute("aria-expanded", "false");
-    document.body.classList.remove("nav-open");
-    if (mobileOverlay) {
-      mobileOverlay.classList.remove("open");
-      mobileOverlay.setAttribute("aria-hidden", "true");
-    }
-    if (mobileDrawer) {
-      mobileDrawer.classList.remove("open");
-    }
-    syncMobileTab(false);
-  };
-
-  highlightActiveNavLinks();
-  closeMobileNav();
-
-  document.querySelectorAll("[data-page-link]").forEach((link) => {
-    link.addEventListener("click", () => {
-      if (isMobileNavViewport()) closeMobileNav();
-    });
-  });
-
-  navTrigger?.addEventListener("click", () => {
-    if (!isMobileNavViewport() || !mobileOverlay || !mobileDrawer) return;
-    const expanded = navTrigger?.getAttribute("aria-expanded") === "true";
-    const nextExpanded = !expanded;
-    navTrigger?.setAttribute("aria-expanded", String(nextExpanded));
-    document.body.classList.toggle("nav-open", nextExpanded);
-    mobileOverlay.classList.toggle("open", nextExpanded);
-    mobileOverlay.setAttribute("aria-hidden", String(!nextExpanded));
-    mobileDrawer.classList.toggle("open", nextExpanded);
-    syncMobileTab(nextExpanded);
-    if (nextExpanded) {
-      const mobileList = mobilePanel?.querySelector(".mobile-nav-list");
-      if (mobileList) mobileList.scrollTop = 0;
-    }
-  });
-
-  mobileOverlay?.addEventListener("click", (event) => {
-    if (!isMobileNavViewport()) return;
-    const target = event.target;
-    if (!(target instanceof Node)) return;
-    if (mobileDrawer?.contains(target)) return;
-    closeMobileNav();
-  });
-
-  window.addEventListener("resize", () => {
-    if (!isMobileNavViewport()) {
-      closeMobileNav();
-    }
-  });
-
-  let openedAt = 0;
-  let openedScrollY = 0;
-  const markMenuOpenTime = () => {
-    openedAt = Date.now();
-    openedScrollY = window.scrollY;
-  };
-  const closeMenuOnUserScroll = () => {
-    if (!isMobileNavViewport()) return;
-    if (!document.body.classList.contains("nav-open")) return;
-    if (Date.now() - openedAt < 280) return;
-    if (Math.abs(window.scrollY - openedScrollY) < 6) return;
-    closeMobileNav();
-  };
-  navTrigger?.addEventListener("click", markMenuOpenTime);
-  window.addEventListener("scroll", closeMenuOnUserScroll, { passive: true });
-
-  const reveals = document.querySelectorAll(".reveal");
-  if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.16 }
-    );
-    reveals.forEach((el) => observer.observe(el));
-  } else {
-    reveals.forEach((el) => el.classList.add("is-visible"));
-  }
-
-  const projectsDeliveredMetric = document.getElementById("projectsDeliveredMetric");
-  let metricObserver = null;
-  if (projectsDeliveredMetric) {
-    projectsDeliveredMetric.textContent = "--";
-
-    const applyProjectCount = (count) => {
-      if (Number.isFinite(count) && count > 0) {
-        projectsDeliveredMetric.textContent = String(count);
-      }
-    };
-
-    const projectsUrl = new URL(`${navBase}projects/`, window.location.href).toString();
-    let didSetCount = false;
-
-    const trySetCount = (count) => {
-      if (didSetCount) return;
-      if (Number.isFinite(count) && count > 0) {
-        didSetCount = true;
-        applyProjectCount(count);
-        if (!("IntersectionObserver" in window)) {
-          animateNumber(projectsDeliveredMetric);
-        } else {
-          const rect = projectsDeliveredMetric.getBoundingClientRect();
-          const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
-          if (isVisible) {
-            animateNumber(projectsDeliveredMetric);
-            if (metricObserver) metricObserver.unobserve(projectsDeliveredMetric);
-          }
+      if (overlay.hidden) return;
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowLeft" && total > 1) go(-1);
+      if (e.key === "ArrowRight" && total > 1) go(1);
+      if (e.key === "Tab") {
+        const focusables = Array.from(overlay.querySelectorAll("button:not([hidden]), a[href]:not([hidden]), [tabindex='0']"));
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
         }
       }
-    };
-
-    const frame = document.createElement("iframe");
-    frame.src = projectsUrl;
-    frame.setAttribute("aria-hidden", "true");
-    frame.tabIndex = -1;
-    frame.style.cssText =
-      "position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;";
-    frame.addEventListener("load", () => {
-      try {
-        const doc = frame.contentDocument;
-        const count = doc ? doc.querySelectorAll(".portfolio-grid .project").length : 0;
-        trySetCount(count);
-      } catch (_) {
-        // If iframe access is blocked, fetch fallback handles it.
-      } finally {
-        window.setTimeout(() => frame.remove(), 0);
-      }
     });
-    document.body.appendChild(frame);
-
-    window
-      .fetch(projectsUrl, { cache: "no-store" })
-      .then((response) => (response.ok ? response.text() : ""))
-      .then((html) => {
-        if (!html) return;
-        const parsed = new window.DOMParser().parseFromString(html, "text/html");
-        const count = parsed.querySelectorAll(".portfolio-grid .project").length;
-        trySetCount(count);
-      })
-      .catch(() => {
-        // Counter intentionally depends on projects page only.
-      });
-  }
-
-  const metricNums = document.querySelectorAll(".metric .num");
-  const animateNumber = (el, duration = 1300) => {
-    if (el.dataset.metricAnimated === "true") return true;
-    const raw = (el.textContent || "").trim();
-    if (!/\d/.test(raw)) return;
-    const plus = raw.endsWith("+");
-    const percent = raw.endsWith("%");
-    const ratio = raw.includes("/");
-    let end = parseFloat(raw.replace(/[^\d.]/g, "")) || 0;
-    let suffix = plus ? "+" : percent ? "%" : "";
-    let ratioTail = "";
-
-    if (ratio) {
-      const match = raw.match(/^([\d.]+)\/(.+)$/);
-      if (match) {
-        end = parseFloat(match[1]);
-        ratioTail = `/${match[2]}`;
-      }
-    }
-
-    const start = performance.now();
-    const frame = (now) => {
-      const p = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      const value = end * eased;
-      const formatted = ratio
-        ? `${value.toFixed(1)}${ratioTail}`
-        : end % 1 !== 0
-        ? value.toFixed(1)
-        : `${Math.round(value)}`;
-      el.textContent = `${formatted}${suffix}`;
-      if (p < 1) {
-        window.requestAnimationFrame(frame);
-      } else {
-        el.dataset.metricAnimated = "true";
-      }
-    };
-    window.requestAnimationFrame(frame);
-    return true;
   };
-
-  if ("IntersectionObserver" in window) {
-    metricObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const didAnimate = animateNumber(entry.target);
-            if (didAnimate) metricObserver.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.55 }
-    );
-    metricNums.forEach((n) => metricObserver.observe(n));
-  }
-
-  const buttons = document.querySelectorAll(".btn");
-  buttons.forEach((btn) => {
-    btn.addEventListener("mousemove", (event) => {
-      if (isMobileCalmViewport()) return;
-      const rect = btn.getBoundingClientRect();
-      const x = event.clientX - rect.left - rect.width / 2;
-      const y = event.clientY - rect.top - rect.height / 2;
-      btn.style.setProperty("--btn-x", `${x * 0.07}px`);
-      btn.style.setProperty("--btn-y", `${y * 0.07}px`);
-    });
-    btn.addEventListener("mouseleave", () => {
-      if (isMobileCalmViewport()) return;
-      btn.style.setProperty("--btn-x", "0px");
-      btn.style.setProperty("--btn-y", "0px");
-    });
-  });
-
-  const tiltItems = document.querySelectorAll(".card, .project");
-  tiltItems.forEach((item) => {
-    item.addEventListener("mousemove", (event) => {
-      if (isMobileCalmViewport()) return;
-      const rect = item.getBoundingClientRect();
-      const x = (event.clientX - rect.left) / rect.width - 0.5;
-      const y = (event.clientY - rect.top) / rect.height - 0.5;
-      item.style.setProperty("--ry", `${x * 5}deg`);
-      item.style.setProperty("--rx", `${-y * 4}deg`);
-    });
-    item.addEventListener("mouseleave", () => {
-      if (isMobileCalmViewport()) return;
-      item.style.setProperty("--ry", "0deg");
-      item.style.setProperty("--rx", "0deg");
-    });
-  });
-
-  const parallaxElements = document.querySelectorAll(
-    ".hero-panel, .card, .project, .metric, .cta"
-  );
-  parallaxElements.forEach((el, i) => {
-    if (!el.dataset.depth) {
-      const base = el.classList.contains("hero-panel")
-        ? 0.07
-        : el.classList.contains("cta")
-        ? 0.05
-        : 0.038;
-      el.dataset.depth = String(base + (i % 3) * 0.008);
-    }
-  });
-
-  const scrubText = document.querySelectorAll("h1, h2, h3, .lead, .section-title p");
-  scrubText.forEach((el) => el.classList.add("scrub-text"));
-
-  const progressBar = document.querySelector(".scroll-progress");
-  const motionLoop = () => {
-    const scrollY = window.scrollY;
-    const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
-    const progress = Math.min(1, Math.max(0, scrollY / maxScroll));
-    progressBar?.style.setProperty("--scroll-progress", progress.toFixed(4));
-
-    const vh = window.innerHeight;
-    const calmMobile = isMobileCalmViewport();
-    if (calmMobile) {
-      scrubText.forEach((el) => {
-        el.style.removeProperty("transform");
-        el.style.removeProperty("opacity");
-      });
-      parallaxElements.forEach((el) => {
-        el.style.removeProperty("--parallax-y");
-        el.style.setProperty("--rx", "0deg");
-        el.style.setProperty("--ry", "0deg");
-      });
-    } else {
-      scrubText.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const center = rect.top + rect.height / 2;
-        const distance = Math.abs(center - vh * 0.46);
-        const normalized = Math.max(0, 1 - distance / (vh * 0.9));
-        const smooth = normalized * normalized * (3 - 2 * normalized);
-        const y = (1 - smooth) * 14;
-        const opacity = 0.42 + smooth * 0.58;
-        el.style.transform = `translate3d(0, ${y}px, 0)`;
-        el.style.opacity = opacity.toFixed(3);
-      });
-
-      parallaxElements.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        const depth = parseFloat(el.dataset.depth || "0.04");
-        const y = Math.max(-18, Math.min(18, -(mid - vh / 2) * depth));
-        el.style.setProperty("--parallax-y", `${y}px`);
-      });
-    }
-
-    if (!prefersReducedMotion) {
-      window.requestAnimationFrame(motionLoop);
-    }
-  };
-
-  if (!prefersReducedMotion) {
-    window.requestAnimationFrame(motionLoop);
-  }
-
   initProjectModals();
 
-  const initHomeMetrics = async () => {
-    if (document.body.dataset.page !== "home") return;
-
-    const satisfactionEl = document.getElementById("clientSatisfactionMetric");
-    const ratingEl = document.getElementById("averageRatingMetric");
-    const reviewCountEl = document.getElementById("reviewCountNote");
-    if (!satisfactionEl || !ratingEl) return;
-    if (reviewCountEl) reviewCountEl.hidden = true;
-
-    const animateMetricValue = (from, to, durationMs, onFrame) => {
-      if (prefersReducedMotion) {
-        onFrame(to);
-        return;
-      }
-      const start = performance.now();
-      const tick = (now) => {
-        const progress = Math.min(1, (now - start) / durationMs);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const value = from + (to - from) * eased;
-        onFrame(value);
-        if (progress < 1) {
-          window.requestAnimationFrame(tick);
-        }
-      };
-      window.requestAnimationFrame(tick);
-    };
-
-    const parseMetricNumber = (value) => {
-      const match = String(value || "").match(/-?\d+(\.\d+)?/);
-      return match ? Number(match[0]) : 0;
-    };
-
-    const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-    let rollingTimer = null;
-
-    if (!prefersReducedMotion) {
-      const seedSatisfaction = randomInt(91, 99);
-      const seedRating = randomInt(45, 50) / 10;
-      satisfactionEl.textContent = `${seedSatisfaction}%`;
-      ratingEl.textContent = `${seedRating.toFixed(1)}/5`;
-      rollingTimer = window.setInterval(() => {
-        const rollingSatisfaction = randomInt(91, 99);
-        const rollingRating = randomInt(45, 50) / 10;
-        satisfactionEl.textContent = `${rollingSatisfaction}%`;
-        ratingEl.textContent = `${rollingRating.toFixed(1)}/5`;
-      }, 90);
-    } else {
-      satisfactionEl.textContent = "--";
-      ratingEl.textContent = "--";
+  /* ---------- Home metrics ---------- */
+  const animateTo = (el, to, format, duration = 900) => {
+    if (prefersReducedMotion) {
+      el.textContent = format(to);
+      return;
     }
-
-    const endpoint =
-      "https://script.google.com/macros/s/AKfycbw1GAY8Rl9U1eW7KW46zne8WBWP8KF1SryZ2wBu2TepBWUaW5RTLweKv3GCcIvYrA/exec";
-
-    try {
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) throw new Error("Metrics request failed");
-      const data = await response.json();
-      const averageRating = String(data?.averageRating || "").trim();
-      const satisfactionPercent = String(data?.satisfactionPercent || "").trim();
-      const reviewCount = Number(data?.reviewCount ?? data?.totalReviews);
-      if (rollingTimer) {
-        window.clearInterval(rollingTimer);
-        rollingTimer = null;
-      }
-
-      if (/^\d+(\.\d+)?\/5$/.test(averageRating)) {
-        const ratingValue = Number(averageRating.replace("/5", ""));
-        const ratingStart = parseMetricNumber(ratingEl.textContent);
-        animateMetricValue(ratingStart, ratingValue, 950, (value) => {
-          ratingEl.textContent = `${value.toFixed(1)}/5`;
-        });
-      }
-      if (/^\d+%$/.test(satisfactionPercent)) {
-        const satisfactionValue = Number(satisfactionPercent.replace("%", ""));
-        const satisfactionStart = parseMetricNumber(satisfactionEl.textContent);
-        animateMetricValue(satisfactionStart, satisfactionValue, 900, (value) => {
-          satisfactionEl.textContent = `${Math.round(value)}%`;
-        });
-      }
-      if (Number.isFinite(reviewCount) && reviewCount > 0 && reviewCountEl) {
-        reviewCountEl.hidden = false;
-        reviewCountEl.textContent = `Based on ${reviewCount} review${reviewCount === 1 ? "" : "s"}`;
-      }
-    } catch (error) {
-      if (rollingTimer) {
-        window.clearInterval(rollingTimer);
-      }
-      satisfactionEl.textContent = "--";
-      ratingEl.textContent = "--";
-      if (reviewCountEl) {
-        reviewCountEl.hidden = true;
-      }
-    }
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - start) / duration);
+      el.textContent = format(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   };
 
-  initHomeMetrics();
+  const projectsEl = document.getElementById("projectsDeliveredMetric");
+  if (projectsEl) {
+    fetch(new URL(`${navBase}projects/`, window.location.href), { cache: "no-store" })
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((html) => {
+        if (!html) return;
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const n = doc.querySelectorAll(".project[data-modal-title]").length;
+        if (n > 0) animateTo(projectsEl, n, (v) => String(Math.round(v)));
+      })
+      .catch(() => {});
+  }
+
+  const satisfactionEl = document.getElementById("clientSatisfactionMetric");
+  const ratingEl = document.getElementById("averageRatingMetric");
+  const reviewCountEl = document.getElementById("reviewCountNote");
+  if (satisfactionEl && ratingEl) {
+    fetch(
+      "https://script.google.com/macros/s/AKfycbw1GAY8Rl9U1eW7KW46zne8WBWP8KF1SryZ2wBu2TepBWUaW5RTLweKv3GCcIvYrA/exec",
+      { headers: { Accept: "application/json" } }
+    )
+      .then((r) => {
+        if (!r.ok) throw new Error("Metrics request failed");
+        return r.json();
+      })
+      .then((data) => {
+        const rating = String(data?.averageRating || "").trim();
+        const satisfaction = String(data?.satisfactionPercent || "").trim();
+        const reviews = Number(data?.reviewCount ?? data?.totalReviews);
+        if (/^\d+(\.\d+)?\/5$/.test(rating)) {
+          animateTo(ratingEl, Number(rating.replace("/5", "")), (v) => `${v.toFixed(1)}/5`);
+        }
+        if (/^\d+%$/.test(satisfaction)) {
+          animateTo(satisfactionEl, Number(satisfaction.replace("%", "")), (v) => `${Math.round(v)}%`);
+        }
+        if (reviewCountEl && Number.isFinite(reviews) && reviews > 0) {
+          reviewCountEl.hidden = false;
+          reviewCountEl.textContent = `Based on ${reviews} client review${reviews === 1 ? "" : "s"}`;
+        }
+      })
+      .catch(() => {});
+  }
 
   const initContactMap = async () => {
     const mapEl = document.getElementById("contactMap");
